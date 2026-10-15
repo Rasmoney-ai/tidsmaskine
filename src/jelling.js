@@ -1,6 +1,6 @@
 // Jelling around 968: village, palisade, mounds, ship setting, church, runestones and the people.
 import * as THREE from 'three';
-import { Builder, G, MAT, rng, paint, canvasTexture } from './toon.js';
+import { Builder, G, MAT, rng, paint, canvasTexture, outline, thickOutline } from './toon.js';
 import { groundHeight } from './world.js';
 import { makePerson, makeSheep, makeDog, tool, walkPose, standPose } from './people.js';
 import { staticShadows } from './shadows.js';
@@ -85,15 +85,27 @@ function longhouse(L, W, seed) {
     const a = ring(i / n);
     for (const side of [-1, 1]) b.add(G.box(0.2, 2.3, 0.2), 0x5e4027, { pos: [a.x, 1.0, side * (a.w + 0.55)], rot: [side * -0.3, 0, 0] });
   }
-  return b.mesh();
+  // Crossed gable boards and a darker ridge cap.
+  for (const s of [0, 1]) {
+    const e = ring(s), dir = s === 0 ? -1 : 1;
+    for (const z of [-0.5, 0.5]) b.add(G.box(0.12, 1.6, 0.1), 0x4a3220, { pos: [e.x + dir * 0.55, e.r + 0.25, z * 0.5], rot: [z * 1.4, 0, 0] });
+  }
+  for (let i = 0; i < n; i++) { const a = ring((i + 0.5) / n); b.add(G.box(L / n + 0.05, 0.22, 0.6), 0x8a7440, { pos: [a.x, a.r + 0.02, 0] }); }
+  const mesh = b.mesh();
+  outline(mesh, OUT_BIG);
+  return mesh;
 }
+
+const OUT_BIG = thickOutline(0.06), OUT_MED = thickOutline(0.03);
 
 function pitHouse(seed) {
   const b = new Builder(seed);
   b.add(G.box(4, 0.8, 3.2), 0x7a5a38, { pos: [0, 0.4, 0], vary: 0.1 });
   b.add(G.cyl(0, 3.0, 2.4, 4), 0xb59a5c, { pos: [0, 2.0, 0], rot: [0, Math.PI / 4, 0], scale: [1.3, 1, 1], vary: 0.08 });
   b.add(G.box(0.9, 1.0, 0.2), 0x3d2a1a, { pos: [0, 0.6, 1.62] });
-  return b.mesh();
+  const mesh = b.mesh();
+  outline(mesh, OUT_BIG);
+  return mesh;
 }
 
 function loom() {
@@ -255,8 +267,17 @@ function church() {
   b.add(G.box(0.2, 1.6, 0.2), 0xd9b44a, { pos: [0, H + 3.4, L / 2 + 0.3] });
   b.add(G.box(0.9, 0.2, 0.2), 0xd9b44a, { pos: [0, H + 3.6, L / 2 + 0.3] });
   // Dragon-head gable ornaments.
-  for (const z of [L / 2 + 0.4, -L / 2 - 0.4]) b.add(G.cone(0.2, 0.9, 4), 0x2f241c, { pos: [0, H + 2.6, z], rot: [z > 0 ? 0.6 : -0.6, 0, 0] });
-  return place(b.mesh(), SITES.church.x, SITES.church.z);
+  for (const z of [L / 2 + 0.4, -L / 2 - 0.4]) {
+    const d = z > 0 ? 1 : -1;
+    b.add(G.cone(0.2, 0.9, 4), 0x2f241c, { pos: [0, H + 2.6, z], rot: [d * 0.6, 0, 0] });
+    b.add(G.box(0.18, 0.18, 0.5), 0x2f241c, { pos: [0, H + 3.05, z + d * 0.35], rot: [d * -0.4, 0, 0] });
+    b.add(G.ball(0.05, 0), 0xd9b44a, { pos: [0, H + 3.12, z + d * 0.55] });
+  }
+  // Shingle rows on the roof.
+  for (let i = 0; i < 6; i++) for (const s of [-1, 1]) b.add(G.box(0.05, 0.08, L + 0.8), 0x241b14, { pos: [s * (0.55 + i * 0.48), H + 2.65 - i * 0.48 * 1.42, 0], rot: [0, 0, s * -0.95] });
+  const mesh = b.mesh();
+  outline(mesh, OUT_BIG);
+  return place(mesh, SITES.church.x, SITES.church.z);
 }
 
 // Runic letters drawn as strokes in a 0.5 x 1 box.
@@ -285,7 +306,20 @@ function runeTexture() {
   ctx.fillStyle = '#b8b2a6'; ctx.fillRect(0, 0, 512, 1024);
   const r = rng(101);
   for (let i = 0; i < 400; i++) { ctx.fillStyle = `rgba(${90 + r() * 60},${90 + r() * 50},${80 + r() * 40},0.18)`; ctx.beginPath(); ctx.arc(r() * 512, r() * 1024, 4 + r() * 18, 0, 7); ctx.fill(); }
-  // Painted bands between the rune lines (the stone was originally painted).
+  // Painted serpent ribbon around the inscription (the stone was originally painted).
+  ctx.lineWidth = 16; ctx.strokeStyle = '#1f3f8a';
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const t = i / 200, per = 2 * (440 + 900);
+    let d = t * per, x, y;
+    if (d < 440) { x = 36 + d; y = 70; } else if ((d -= 440) < 900) { x = 476; y = 70 + d; } else if ((d -= 900) < 440) { x = 476 - d; y = 970; } else { d -= 440; x = 36; y = 970 - d; }
+    const w = Math.sin(t * Math.PI * 46) * 9;
+    const X = x + (x === 36 ? w : x === 476 ? -w : 0), Y = y + (y === 70 ? w : y === 970 ? -w : 0);
+    i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 6; ctx.strokeStyle = '#c23b2e'; ctx.stroke();
+  ctx.fillStyle = '#c23b2e'; ctx.beginPath(); ctx.ellipse(60, 990, 26, 16, -0.4, 0, 7); ctx.fill();
   const top = 120, lineH = 190;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   RUNE_LINES.forEach((line, li) => {
@@ -315,6 +349,7 @@ function runestones() {
   // Harald's stone: three-sided, slightly leaning, ~2.4 m tall.
   const shape = new THREE.CylinderGeometry(0.55, 0.9, 2.45, 3, 1);
   const stone = new THREE.Mesh(paint(shape, 0xa8a196, { pos: [0, 1.2, 0], vary: 0.05, rand: rng(102) }), MAT.world);
+  outline(stone, OUT_MED);
   g.add(stone);
   // Inscription face: one side of the triangle, facing local +z after rotation.
   const face = new THREE.Mesh(new THREE.PlaneGeometry(1, 2.3), new THREE.MeshToonMaterial({ map: runeTexture() }));
@@ -365,22 +400,67 @@ function loopPath(points) {
   };
 }
 
+const SMOKE_TEX = (() => {
+  const { ctx, tex } = canvasTexture(64, 64);
+  const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 31);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.5, 'rgba(240,240,236,0.45)'); g.addColorStop(1, 'rgba(240,240,236,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  tex.needsUpdate = true;
+  return tex;
+})();
+
 function smoke(x, y, z, seed) {
   const group = new THREE.Group();
-  const geo = paint(G.ball(0.55, 1), 0xf4f4f0, { rand: rng(seed) });
   const puffs = [];
-  for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(geo, MAT.world); group.add(m); puffs.push(m); }
+  for (let i = 0; i < 7; i++) {
+    const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: SMOKE_TEX, color: 0xb9b6b0, transparent: true, depthWrite: false }));
+    group.add(m); puffs.push(m);
+  }
   group.position.set(x, y, z);
   return {
     group,
     update(t) {
       puffs.forEach((m, i) => {
-        const p = (t * 0.12 + i / 5 + seed * 0.13) % 1;
-        m.position.set(p * 2.5 + Math.sin(t * 0.5 + i) * 0.2, p * 7, p * 0.8);
-        m.scale.setScalar((0.5 + p * 1.6) * (1 - smooth((p - 0.75) / 0.25)));
+        const p = (t * 0.09 + i / 7 + seed * 0.13) % 1;
+        m.position.set(p * 3.5 + Math.sin(t * 0.4 + i) * 0.3, p * 9, p * 1.2);
+        m.scale.setScalar(0.8 + p * 3.2);
+        m.material.opacity = 0.75 * smooth(p / 0.12) * (1 - smooth((p - 0.45) / 0.55));
+        m.material.rotation = i + t * 0.1;
       });
     },
   };
+}
+
+// Village props: barrels, a well, a fish-drying rack, benches.
+function props() {
+  const b = new Builder(700);
+  const barrel = (x, z) => {
+    const y = groundHeight(x, z);
+    b.add(new THREE.LatheGeometry([[0.25, 0], [0.3, 0.35], [0.25, 0.7]].map(([r, h]) => new THREE.Vector2(r, h)), 10), 0x7a5532, { pos: [x, y, z], vary: 0.08 });
+    for (const h of [0.12, 0.58]) b.add(G.torus(0.275, 0.018, 3, 10), 0x3a3a38, { pos: [x, y + h, z], rot: [Math.PI / 2, 0, 0] });
+    b.add(G.cyl(0.24, 0.24, 0.02, 10), 0x5a3e22, { pos: [x, y + 0.7, z] });
+  };
+  [[-89, 4.6], [-88.4, 5.3], [-81, 34], [-74.5, 34.4], [-103, 4.8]].forEach(([x, z]) => barrel(x, z));
+  // Well.
+  const wx = -96, wz = 32, wy = groundHeight(wx, wz);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; b.add(G.dodeca(0.28), 0x8a857a, { pos: [wx + Math.cos(a) * 0.75, wy + 0.25, wz + Math.sin(a) * 0.75], vary: 0.1 }); }
+  for (const s of [-1, 1]) b.add(G.box(0.12, 1.8, 0.12), 0x5e4027, { pos: [wx + s * 0.9, wy + 0.9, wz] });
+  b.add(G.cyl(0.06, 0.06, 2.0, 6), 0x7a5532, { pos: [wx, wy + 1.6, wz], rot: [0, 0, Math.PI / 2] });
+  b.add(G.cyl(0.14, 0.12, 0.25, 8), 0x6b4a2e, { pos: [wx + 0.2, wy + 1.05, wz] });
+  // Fish-drying rack.
+  const fx = -100, fz = 9, fy = groundHeight(fx, fz);
+  for (const s of [-1, 1]) for (const t of [-1, 1]) b.add(G.box(0.08, 1.9, 0.08), 0x5e4027, { pos: [fx + s * 1.5, fy + 0.9, fz + t * 0.4], rot: [t * 0.2, 0, 0] });
+  b.add(G.box(3.2, 0.06, 0.06), 0x5e4027, { pos: [fx, fy + 1.75, fz] });
+  for (let i = 0; i < 9; i++) b.add(G.cone(0.07, 0.5, 4), 0xb8b0a0, { pos: [fx - 1.3 + i * 0.32, fy + 1.45, fz], rot: [Math.PI, 0, 0], scale: [1, 1, 0.4] });
+  // Benches.
+  for (const [x, z, yaw] of [[-84, 9.5, 0.2], [-73, 32, -0.1]]) {
+    const y = groundHeight(x, z);
+    b.add(G.box(1.6, 0.08, 0.35), 0x7a5532, { pos: [x, y + 0.45, z], rot: [0, yaw, 0] });
+    for (const s of [-0.6, 0.6]) b.add(G.box(0.1, 0.45, 0.3), 0x5e4027, { pos: [x + Math.cos(yaw) * s, y + 0.22, z - Math.sin(yaw) * s], rot: [0, yaw, 0] });
+  }
+  const mesh = b.mesh();
+  outline(mesh, OUT_MED);
+  return mesh;
 }
 
 export function buildJelling(scene, timeline) {
@@ -397,6 +477,7 @@ export function buildJelling(scene, timeline) {
   group.add(place(pitHouse(304), -64, 4, -0.4));
   group.add(place(woodpile(305), -106, 29, 0.2));
   group.add(fenceRing(-122, 2, 7, r));
+  group.add(props());
   group.add(place(loom(), -88.5, 8, -Math.PI / 2));
   const fire = place(firePit(), -84, 12);
   group.add(fire);

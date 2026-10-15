@@ -22,8 +22,9 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 
 - `timeline.js`: Rute, stop, tekster og lydsignaler. Alt beregnes ud fra rejsens tid `t`. Samme `t` giver samme billede.
 - `clock.js`: Udskifteligt ur (lokalt nu, senere lydspor eller fælles server-ur).
-- `capsule.js`: Kabinen med 10 sæder (5 rækker à 2), skilt med årstal, tablets og tågeskal til tidsspring/komfort.
+- `capsule.js`: Ottekantet glaskapsel ("Jules Verne møder Villeneuve": messing, læder, mørk kuppel med ovenlys og armillarsfære) med 10 sæder (5 rækker à 2), skilt med årstal, tablets og tågeskal til tidsspring/komfort.
 - `world.js`: Terræn, himmel, træer. `jelling.js`: Rejse 1 (bygninger, figurer, hund). `people.js`: figurbygger.
+- `shadows.js`: Falske bløde skygger. `life.js`: Fugle og sommerfugle.
 - `audio.js`: Pladsholderlyd med Web Audio. `hands.js`: Brugerens hænder. `ui.js`: Startside og taster.
 - Nye rejser: én fil pr. sted/tid som `jelling.js` plus et manuskript i tidslinjen.
 

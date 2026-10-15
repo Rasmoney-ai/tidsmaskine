@@ -1,6 +1,6 @@
 // Shared cel-shaded materials and a helper that merges low-poly parts into one vertex-colored mesh.
 import * as THREE from 'three';
-import { mergeGeometries } from '../vendor/three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from '../vendor/three/addons/utils/BufferGeometryUtils.js';
 
 function gradient(steps) {
   const data = new Uint8Array(steps);
@@ -19,6 +19,30 @@ export const MAT = {
   cabin: new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: GRADIENT, fog: false }),
   glow: new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }),
 };
+
+const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1a1410, side: THREE.BackSide });
+OUTLINE.onBeforeCompile = (sh) => {
+  sh.uniforms.uThick = { value: 0.012 };
+  sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 0.012;');
+};
+
+// Ink outline around a mesh (one extra draw call). Uses smooth normals so the hull has no cracks.
+export function outline(mesh, mat = OUTLINE) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', mesh.geometry.attributes.position.clone());
+  const merged = mergeVertices(g, 1e-4);
+  merged.computeVertexNormals();
+  const o = new THREE.Mesh(merged, mat);
+  mesh.add(o);
+  return o;
+}
+
+export function thickOutline(thick) {
+  const m = OUTLINE.clone();
+  m.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${thick.toFixed(3)};`); };
+  m.customProgramCacheKey = () => 'outline' + thick;
+  return m;
+}
 
 // Deterministic random numbers.
 export function rng(seed) {
