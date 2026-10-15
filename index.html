@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tidsmaskinen</title>
+  <style>
+    :root { --ink: #16323a; --paper: #f4efe3; --brass: #c9a24a; --teal: #2a7f86; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1b22; font-family: system-ui, sans-serif; }
+    canvas { display: block; }
+    #start { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 30%, #23434d, #0b1418 70%); color: var(--paper); overflow: auto; padding: 16px; box-sizing: border-box; }
+    #start[hidden], #hud[hidden] { display: none; }
+    .card { max-width: 560px; width: 100%; text-align: center; }
+    h1 { font-size: clamp(2.2rem, 7vw, 3.4rem); letter-spacing: .12em; margin: 0 0 .2em; color: var(--brass); }
+    .sub { margin: 0 0 1.4em; opacity: .85; font-size: 1.1rem; line-height: 1.45; }
+    .trip { display: inline-block; border: 2px solid var(--brass); border-radius: 10px; padding: .5em 1em; margin-bottom: 1.4em; }
+    .trip b { color: #fff; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 0 0 .6em; opacity: .9; }
+    #seats { display: grid; grid-template-columns: repeat(2, 64px); column-gap: 46px; row-gap: 10px; justify-content: center; margin: 0 auto 1.4em; padding: 14px 0; background: linear-gradient(90deg, transparent 47%, #2f8f8a55 47%, #2f8f8a55 53%, transparent 53%); }
+    .seat { height: 52px; font-size: 1.3rem; font-weight: 700; border-radius: 10px; border: 2px solid #4d6b72; background: #1b2f36; color: var(--paper); cursor: pointer; }
+    .seat.on { background: var(--teal); border-color: #7fe0d4; }
+    label { display: inline-flex; gap: .5em; align-items: center; margin-bottom: 1.4em; cursor: pointer; }
+    input[type=checkbox] { width: 22px; height: 22px; }
+    .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .buttons button { font-size: 1.15rem; padding: .8em 1.4em; border-radius: 12px; border: 0; cursor: pointer; font-weight: 700; }
+    #enter-vr { background: var(--brass); color: #1a1a1a; }
+    #enter-vr:disabled { background: #555; color: #bbb; cursor: default; }
+    #enter-desktop { background: #e9e4d6; color: var(--ink); }
+    .rule { margin-top: 1.6em; font-size: .95rem; opacity: .7; }
+    #hud { position: fixed; left: 12px; bottom: 12px; right: 12px; color: #fff; font-size: 14px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+    #hud .keys { margin-top: 4px; opacity: .85; }
+    #hud.small .keys { display: none; }
+    #hud button { pointer-events: auto; position: fixed; top: 12px; left: 12px; border: 0; border-radius: 8px; padding: 6px 12px; background: #000a; color: #fff; cursor: pointer; }
+  </style>
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js" } }</script>
+</head>
+<body>
+  <div id="start">
+    <div class="card">
+      <h1>TIDSMASKINEN</h1>
+      <p class="sub">Stig om bord i tidskapslen. Den glider usynligt gennem fortiden, så ingen opdager os.</p>
+      <div class="trip">Rejse 1: <b>Jelling, ca. år 968</b> · ca. 4½ min.</div>
+      <h2>Vælg dit sæde (forrest er 1 og 2)</h2>
+      <div id="seats"></div>
+      <label><input type="checkbox" id="comfort"> Komforttilstand (tåge, mens kapslen flytter sig)</label>
+      <div class="buttons">
+        <button id="enter-vr">Gå ind i VR</button>
+        <button id="enter-desktop">Se på skærmen</button>
+      </div>
+      <p class="rule">Regel nr. 1: Rør intet. Ændr intet.</p>
+    </div>
+  </div>
+  <div id="hud" hidden>
+    <button id="back">Tilbage</button>
+    <div id="status"></div>
+    <div class="keys">Træk med musen for at kigge rundt · Mellemrum: start/pause · ← →: spol 10 sek. · N / P: næste/forrige kapitel · R: forfra · C: komfort · 1-0: sæde · H: skjul hjælp</div>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
