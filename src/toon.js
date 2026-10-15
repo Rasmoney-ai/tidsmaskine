@@ -4,14 +4,14 @@ import { mergeGeometries } from '../vendor/three/addons/utils/BufferGeometryUtil
 
 function gradient(steps) {
   const data = new Uint8Array(steps);
-  for (let i = 0; i < steps; i++) data[i] = Math.round(70 + (185 * i) / (steps - 1));
+  for (let i = 0; i < steps; i++) data[i] = Math.round(95 + (160 * i) / (steps - 1));
   const tex = new THREE.DataTexture(data, steps, 1, THREE.RedFormat);
   tex.minFilter = tex.magFilter = THREE.NearestFilter;
   tex.needsUpdate = true;
   return tex;
 }
 
-const GRADIENT = gradient(3);
+const GRADIENT = gradient(4);
 
 // World objects: affected by fog. Cabin objects: never fogged (cabin stays clear in mist).
 export const MAT = {

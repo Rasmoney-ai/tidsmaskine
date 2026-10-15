@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { MAT, Builder, G, rng, paint } from './toon.js';
 import { WORLD } from './config.js';
+import { SUN_DIR, staticShadows } from './shadows.js';
 
 const CENTER_X = -60, CENTER_Z = 0;
 
@@ -70,29 +71,67 @@ function terrainMesh(size, segs, offsetInside) {
 }
 
 function sky() {
-  const geo = new THREE.SphereGeometry(480, 24, 12);
-  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
-  const top = new THREE.Color(0x7fb2dc), mid = new THREE.Color(0xb9d3e3), hor = new THREE.Color(WORLD.FOG_COLOR), c = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    const h = pos.getY(i) / 480;
-    if (h < 0.08) c.copy(hor); else if (h < 0.35) c.copy(hor).lerp(mid, (h - 0.08) / 0.27); else c.copy(mid).lerp(top, (h - 0.35) / 0.65);
-    col.set([c.r, c.g, c.b], i * 3);
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTop: { value: new THREE.Color(0x5e8fc4) }, uMid: { value: new THREE.Color(0xa9c6dc) },
+      uHor: { value: new THREE.Color(WORLD.FOG_COLOR) }, uSun: { value: new THREE.Color(0xfff1cf) },
+      uSunDir: { value: SUN_DIR.clone() },
+    },
+    vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }`,
+    fragmentShader: `
+      uniform vec3 uTop, uMid, uHor, uSun, uSunDir; varying vec3 vDir;
+      void main(){
+        float h = vDir.y;
+        vec3 c = mix(uHor, uMid, smoothstep(0.0, 0.25, h));
+        c = mix(c, uTop, smoothstep(0.25, 0.9, h));
+        c = mix(c, uHor * 0.92, smoothstep(0.0, -0.2, h));
+        float s = max(dot(normalize(vDir), uSunDir), 0.0);
+        c += uSun * (pow(s, 600.0) * 3.0 + pow(s, 24.0) * 0.35 + pow(s, 4.0) * 0.12);
+        gl_FragColor = vec4(c, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+    side: THREE.BackSide, depthWrite: false, fog: false,
+  });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(480, 32, 16), mat);
   m.renderOrder = -10;
-  // Sun disc and a few flat cartoon clouds.
+  m.frustumCulled = false;
+  // Cel-shaded cumulus clouds (lit by the sun, no fog).
   const b = new Builder(3);
-  b.add(G.ball(14, 1), 0xfff6d8, { pos: [300, 160, -260] });
   const r = rng(11);
-  for (let i = 0; i < 14; i++) {
-    const a = r() * Math.PI * 2, d = 300 + r() * 120, y = 110 + r() * 70;
-    for (let k = 0; k < 4; k++)
-      b.add(G.ball(10 + r() * 14, 1), 0xffffff, { pos: [Math.cos(a) * d + k * 16 - 24, y + r() * 6, Math.sin(a) * d + r() * 10], scale: [1.6, 0.6, 1] });
+  for (let i = 0; i < 16; i++) {
+    const a = r() * Math.PI * 2, d = 280 + r() * 140, y = 95 + r() * 80;
+    const cx = Math.cos(a) * d, cz = Math.sin(a) * d, n = 4 + Math.floor(r() * 4);
+    for (let k = 0; k < n; k++) {
+      const s = 9 + r() * 13;
+      b.add(G.ball(s, 1), 0xffffff, { pos: [cx + (k - n / 2) * 13 + r() * 6, y + r() * 9, cz + r() * 14], scale: [1.4, 0.75, 1.1] });
+    }
+    b.add(G.ball(26, 1), 0xf3f1ea, { pos: [cx, y - 6, cz], scale: [2.6, 0.3, 1.4] });
   }
-  const clouds = new THREE.Mesh(b.geometry(), MAT.glow.clone());
-  clouds.material.fog = false; clouds.material.depthWrite = false; clouds.renderOrder = -9;
+  const cloudMat = MAT.world.clone(); cloudMat.fog = false;
+  const clouds = new THREE.Mesh(b.geometry(), cloudMat);
+  clouds.renderOrder = -9;
   m.add(clouds);
+  // Distant hill layers fading into the haze (aerial perspective, pre-blended colors).
+  const hor = new THREE.Color(WORLD.FOG_COLOR);
+  [[330, 0x6f8a5a, 0.55, 26], [420, 0x7f9a78, 0.72, 40]].forEach(([rad, col, haze, hgt], li) => {
+    const pts = [], segs = 64, rr = rng(30 + li);
+    const pos = [];
+    for (let i = 0; i <= segs; i++) {
+      const a = i / segs * Math.PI * 2;
+      const h = hgt * (0.35 + 0.65 * Math.abs(Math.sin(a * (3 + li) + rr() * 0.6)) * (0.6 + rr() * 0.4));
+      pts.push([Math.cos(a) * rad, h, Math.sin(a) * rad]);
+    }
+    for (let i = 0; i < segs; i++) {
+      const [x0, h0, z0] = pts[i], [x1, h1, z1] = pts[i + 1];
+      pos.push(x0, -20, z0, x1, -20, z1, x1, h1, z1, x0, -20, z0, x1, h1, z1, x0, h0, z0);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const c = new THREE.Color(col).lerp(hor, haze);
+    const hm = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: c, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    hm.renderOrder = -8 + li * -0.5;
+    m.add(hm);
+  });
   return m;
 }
 
@@ -115,14 +154,18 @@ function trees(rand) {
   const ok = spots.filter(([x, z]) => pathDistance(x, z) > 8 && !(x > -60 && x < 30 && z > -95 && z < 70));
   const mesh = new THREE.InstancedMesh(geo, MAT.world, ok.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), c = new THREE.Color();
+  const shadows = [];
   ok.forEach(([x, z], i) => {
     const k = 0.8 + rand() * 0.7;
+    shadows.push([x, groundHeight(x, z), z, 5.5 * k, 5.5 * k, 0, 4 * k]);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6.28);
     m.compose(new THREE.Vector3(x, groundHeight(x, z) - 0.2, z), q, s.set(k, k * (0.9 + rand() * 0.3), k));
     mesh.setMatrixAt(i, m);
-    mesh.setColorAt(i, c.setHSL(0.27 + rand() * 0.06, 0.4, 0.45 + rand() * 0.15).multiplyScalar(2));
+    mesh.setColorAt(i, c.setRGB(0.85 + rand() * 0.25, 0.9 + rand() * 0.2, 0.8 + rand() * 0.2));
   });
-  return mesh;
+  const g = new THREE.Group();
+  g.add(mesh, staticShadows(shadows));
+  return g;
 }
 
 function scatter(geo, count, rand, filter, scaleRange, colorFn) {
@@ -163,9 +206,9 @@ export function buildWorld(scene, avoid) {
 
   scene.fog = new THREE.FogExp2(WORLD.FOG_COLOR, WORLD.FOG_DENSITY);
   scene.background = new THREE.Color(WORLD.FOG_COLOR);
-  const hemi = new THREE.HemisphereLight(0xdfefff, 0x6d7f45, 1.6);
-  const sun = new THREE.DirectionalLight(0xfff1d6, 2.2);
-  sun.position.set(60, 70, -40);
+  const hemi = new THREE.HemisphereLight(0xc4d8ec, 0x6e6048, 1.15);
+  const sun = new THREE.DirectionalLight(0xffdcaa, 3.4);
+  sun.position.copy(SUN_DIR).multiplyScalar(100);
   scene.add(hemi, sun);
   return group;
 }

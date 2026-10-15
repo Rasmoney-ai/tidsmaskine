@@ -63,7 +63,7 @@ function cabinShell() {
   for (const k of [2, 3, 4]) {
     const a = sideMid(k), len = 2 * (R - 0.55) * Math.sin(Math.PI / 8), d = ap - 0.5;
     b.add(G.box(len + 0.05, 0.62, 0.42), BRONZE, { pos: [d * Math.sin(a), 0.31, d * Math.cos(a)], rot: [0, a, 0] });
-    b.add(G.box(len + 0.1, 0.05, 0.5), BRASS, { pos: [d * Math.sin(a), 0.64, d * Math.cos(a)], rot: [0, a, 0] });
+    b.add(G.box(len + 0.1, 0.05, 0.5), 0x2b2622, { pos: [d * Math.sin(a), 0.64, d * Math.cos(a)], rot: [0, a, 0] });
   }
   for (let i = 0; i < 5; i++) b.add(G.cyl(0.11, 0.11, 0.04, 12), BRASS, { pos: [-1.0 + i * 0.5, 0.68, -ap + 0.48] });
   // Leather seats and tablet stands.
@@ -146,6 +146,7 @@ function mistShell() {
         // Lab: soft floor/horizon so the cabin does not float in a white void.
         calm *= mix(0.86, 1.0, smoothstep(-0.4, 0.2, d.y));
         gl_FragColor = vec4(mix(calm, tun, uTunnel), uOpacity);
+        #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
     side: THREE.BackSide, transparent: true, depthWrite: false, fog: false,

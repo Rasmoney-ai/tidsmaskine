@@ -1,6 +1,7 @@
 // Low-poly characters and animals built in code. Poses are set from trip time t only.
 import * as THREE from 'three';
 import { Builder, G, MAT } from './toon.js';
+import { blob } from './shadows.js';
 
 const SKIN = [0xf1c7a5, 0xe8b48f, 0xd9a07a];
 
@@ -75,6 +76,7 @@ export function makePerson(o = {}) {
     return p;
   };
   const armL = arm(-1), armR = arm(1), legL = leg(-1), legR = leg(1);
+  root.add(blob(0.9 * s));
   return { root, body, head, armL, armR, legL, legR };
 }
 
@@ -135,6 +137,7 @@ export function makeSheep(seed = 1) {
   for (const [x, z] of [[-0.18, 0.3], [0.18, 0.3], [-0.18, -0.3], [0.18, -0.3]])
     b.add(G.box(0.08, 0.45, 0.08), 0x2b2724, { pos: [x, 0.25, z] });
   root.add(b.mesh());
+  root.add(blob(1.1));
   const head = pivot(root, 0, 0.8, 0.5);
   const h = new Builder(seed + 1);
   h.add(G.box(0.2, 0.22, 0.3), 0x2b2724, { pos: [0, 0, 0.12] });
@@ -149,7 +152,7 @@ export function makeDog() {
   const body = new Builder(21);
   body.add(G.box(0.28, 0.28, 0.7), 0x8a6a48, { pos: [0, 0.5, 0], vary: 0.05 });
   body.add(G.box(0.24, 0.12, 0.5), 0xd8c3a2, { pos: [0, 0.38, 0.05] });
-  const bm = body.mesh(); root.add(bm);
+  const bm = body.mesh(); root.add(bm, blob(0.9));
   const legs = [];
   for (const [x, z] of [[-0.1, 0.27], [0.1, 0.27], [-0.1, -0.27], [0.1, -0.27]]) {
     const p = pivot(root, x, 0.42, z);

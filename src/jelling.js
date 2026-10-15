@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Builder, G, MAT, rng, paint, canvasTexture } from './toon.js';
 import { groundHeight } from './world.js';
 import { makePerson, makeSheep, makeDog, tool, walkPose, standPose } from './people.js';
+import { staticShadows } from './shadows.js';
 
 const smooth = (x) => { x = Math.min(Math.max(x, 0), 1); return x * x * (3 - 2 * x); };
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -211,7 +212,7 @@ function mounds() {
 }
 
 // Ship setting: two curved rows of standing stones, center at the north mound.
-function shipSetting(route) {
+function shipSetting(route, shadows) {
   const nearRoute = (x, z) => route.some((p) => Math.hypot(p.x - x, p.z - z) < 4);
   const n = SITES.northMound;
   const half = 130, W = 30;
@@ -236,6 +237,7 @@ function shipSetting(route) {
     m.compose(new THREE.Vector3(x, groundHeight(x, z) - 0.15, z), q, sc.set(big * (0.8 + r() * 0.4), big * (0.75 + r() * 0.5), big));
     mesh.setMatrixAt(i, m);
     mesh.setColorAt(i, c.setScalar(0.85 + r() * 0.3));
+    shadows.push([x, groundHeight(x, z), z, 2.2 * big, 2.2 * big, 0, 1.6 * big]);
   });
   return mesh;
 }
@@ -384,6 +386,7 @@ function smoke(x, y, z, seed) {
 export function buildJelling(scene, timeline) {
   const group = new THREE.Group();
   const actors = [];
+  const shadows = [];
   const emitters = [];
   const r = rng(200);
 
@@ -455,7 +458,13 @@ export function buildJelling(scene, timeline) {
   // --- Palisade, mounds, ship setting, church, stones --------------------
   group.add(palisade());
   group.add(mounds());
-  group.add(shipSetting(timeline.curve.getSpacedPoints(300)));
+  group.add(shipSetting(timeline.curve.getSpacedPoints(300), shadows));
+  const sh = (x, z, sx, sz, yaw, h) => shadows.push([x, groundHeight(x, z), z, sx, sz, yaw, h]);
+  sh(-96, 0, 27, 11, 0, 4); sh(-78, 38, 23, 10, 0.06, 4); sh(-110, 36, 7, 6, 0.3, 2); sh(-64, 4, 7, 6, -0.4, 2);
+  sh(SITES.church.x, SITES.church.z - 1, 10, 17, 0, 5); sh(SITES.stone.x, SITES.stone.z, 2.4, 2.4, 0, 2.4);
+  for (let z = -110; z <= 110; z += 6) if (z < SITES.gate[0] - 2 || z > SITES.gate[1] + 2) sh(SITES.palisadeX, z, 3.2, 7, 0, 3);
+  sh(-29, 35, 6, 3.5, 0, 0.5); sh(-33, 40, 2.6, 3.5, 0.4, 1); sh(-106, 29, 3, 2, 0.2, 0.8);
+  group.add(staticShadows(shadows));
   group.add(church());
   group.add(runestones());
 

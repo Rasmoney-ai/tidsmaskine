@@ -36,8 +36,8 @@ export const TRIP_YEAR = 968;
 export const HOME_YEAR = 2026;
 
 export const WORLD = {
-  FOG_COLOR: 0xcfdbe0,
-  FOG_DENSITY: 0.0052,
+  FOG_COLOR: 0xe2d9c4,
+  FOG_DENSITY: 0.0058,
   MIST_LAB: 0xe8f4f2,       // bright "time lab" color around the capsule at home
   MIST_STEALTH: 0xc9d6da,   // calm comfort-mode mist
 };
