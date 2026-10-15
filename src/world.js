@@ -25,6 +25,18 @@ export function pathDistance(x, z) {
   return d;
 }
 
+// Strip fields near the village: [x0, z0, x1, z1].
+export const FIELDS = [[-152, 31, -112, 64], [-146, -46, -114, -14], [-104, 50, -84, 74]];
+export const POND = { x: 40, z: 4, r: 12 };
+
+export function fieldStripe(x, z) {
+  for (let i = 0; i < FIELDS.length; i++) {
+    const [x0, z0, x1, z1] = FIELDS[i];
+    if (x > x0 && x < x1 && z > z0 && z < z1) return Math.floor((x - x0) / 5.5) + i * 3;
+  }
+  return -1;
+}
+
 const smooth = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
 
 // Ground height: nearly flat where things happen, gentle hills further out.
@@ -33,7 +45,8 @@ export function groundHeight(x, z) {
   const small = 0.25 * Math.sin(x * 0.09 + 1.1) * Math.cos(z * 0.07);
   const hills = 3.2 * Math.sin(x * 0.018 + 1.3) * Math.cos(z * 0.015 - 0.4)
     + 1.8 * Math.sin(x * 0.041 + z * 0.029) + 1.2 * Math.sin(z * 0.06 - x * 0.02);
-  return small + (hills + 4) * smooth(115, 260, r) * 1.6;
+  const pd = Math.hypot(x - POND.x, z - POND.z);
+  return small + (hills + 4) * smooth(115, 260, r) * 1.6 - 0.9 * smooth(POND.r + 3, POND.r - 3, pd);
 }
 
 function terrainMesh(size, segs, offsetInside) {
@@ -53,15 +66,26 @@ function terrainMesh(size, segs, offsetInside) {
   geo.computeVertexNormals();
   const col = new Float32Array(pos.count * 3);
   const rand = rng(7);
-  const grass = new THREE.Color(0x86a352), grass2 = new THREE.Color(0x9fb265), dirt = new THREE.Color(0x9a7b50), c = new THREE.Color();
+  const grass = new THREE.Color(0x6f8f43), grass2 = new THREE.Color(0x8c9a4e), straw = new THREE.Color(0xa99a5c), heath = new THREE.Color(0x7d6a6a);
+  const dirt = new THREE.Color(0x8a6c48), mud = new THREE.Color(0x6a5a40), sand = new THREE.Color(0xb3a27a);
+  const STRIPES = [0xc9a75a, 0x7a6243, 0x8fa24e, 0xb89a50, 0x6f5a3e, 0xbfa35e, 0x93a352, 0xc4a65c, 0x7d6545].map((h) => new THREE.Color(h));
+  const c = new THREE.Color();
   for (let i = 0; i < pos.count; i += 3) {
     const x = (pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3;
     const z = (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3;
-    const n = 0.5 + 0.5 * Math.sin(x * 0.11 + Math.cos(z * 0.13) * 2);
-    c.copy(grass).lerp(grass2, n);
+    const big = 0.5 + 0.5 * Math.sin(x * 0.031 + Math.cos(z * 0.027) * 1.7) * Math.sin(z * 0.023 + 0.8);
+    const fine = 0.5 + 0.5 * Math.sin(x * 0.13 + z * 0.07) * Math.cos(z * 0.11 - x * 0.05);
+    c.copy(grass).lerp(grass2, big * 0.8 + fine * 0.3);
+    c.lerp(straw, smooth(0.62, 0.95, big) * 0.6);
+    const far = Math.hypot(x - CENTER_X, z - CENTER_Z);
+    c.lerp(heath, smooth(140, 260, far) * smooth(0.4, 0.8, fine) * 0.5);
+    const st = fieldStripe(x, z);
+    if (st >= 0) c.copy(STRIPES[st % STRIPES.length]);
+    const pd = Math.hypot(x - POND.x, z - POND.z);
+    if (pd < POND.r + 3) c.lerp(pd < POND.r + 0.8 ? sand : mud, 1 - smooth(POND.r, POND.r + 3, pd));
     if (!offsetInside) {
       const d = pathDistance(x, z);
-      if (d < 2.2) c.lerp(dirt, 1 - smooth(1.2, 2.2, d));
+      if (d < 2.4) c.lerp(d < 1.0 ? mud : dirt, 1 - smooth(1.2, 2.4, d));
     }
     c.multiplyScalar(0.94 + rand() * 0.1);
     for (let j = 0; j < 3; j++) col.set([c.r, c.g, c.b], (i + j) * 3);
@@ -100,7 +124,7 @@ function sky() {
   const b = new Builder(3);
   const r = rng(11);
   for (let i = 0; i < 16; i++) {
-    const a = r() * Math.PI * 2, d = 280 + r() * 140, y = 95 + r() * 80;
+    const a = r() * Math.PI * 2, d = 330 + r() * 110, y = 120 + r() * 90;
     const cx = Math.cos(a) * d, cz = Math.sin(a) * d, n = 4 + Math.floor(r() * 4);
     for (let k = 0; k < n; k++) {
       const s = 9 + r() * 13;
@@ -108,8 +132,18 @@ function sky() {
     }
     b.add(G.ball(26, 1), 0xf3f1ea, { pos: [cx, y - 6, cz], scale: [2.6, 0.3, 1.4] });
   }
-  const cloudMat = MAT.world.clone(); cloudMat.fog = false;
-  const clouds = new THREE.Mesh(b.geometry(), cloudMat);
+  // Unlit clouds with a soft vertical gradient: bright tops, cool grey bellies.
+  const cg = b.geometry(), cp = cg.attributes.position, cc = cg.attributes.color;
+  const top = new THREE.Color(0xfffaf0), belly = new THREE.Color(0xc9d2dc), cc2 = new THREE.Color();
+  let minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < cp.count; i++) { minY = Math.min(minY, cp.getY(i)); maxY = Math.max(maxY, cp.getY(i)); }
+  for (let i = 0; i < cp.count; i += 3) {
+    const y = (cp.getY(i) + cp.getY(i + 1) + cp.getY(i + 2)) / 3;
+    const ny = (cp.getNormal ? 0 : 0) + (cg.attributes.normal.getY(i) + 1) / 2;
+    cc2.copy(belly).lerp(top, Math.min(1, ny * 1.2));
+    for (let j = 0; j < 3; j++) cc.setXYZ(i + j, cc2.r, cc2.g, cc2.b);
+  }
+  const clouds = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, depthWrite: false }));
   clouds.renderOrder = -9;
   m.add(clouds);
   // Distant hill layers fading into the haze (aerial perspective, pre-blended colors).
@@ -142,6 +176,12 @@ function trees(rand) {
   b.add(G.ball(1.6, 0), 0x4c8a40, { pos: [0.9, 5.5, 0.3] });
   b.add(G.ball(1.5, 0), 0x457f3a, { pos: [-0.9, 5.2, -0.5] });
   const geo = b.geometry();
+  const bb = new Builder(6);
+  bb.add(G.cyl(0.13, 0.18, 6, 6), 0xe8e4da, { pos: [0, 3, 0] });
+  for (let i = 0; i < 4; i++) bb.add(G.box(0.2, 0.06, 0.2), 0x2b2b2b, { pos: [0, 0.8 + i * 1.3, 0.12], rot: [0, i, 0] });
+  bb.add(G.ball(1.5, 0), 0x8fae4a, { pos: [0, 5.6, 0], scale: [0.9, 1.6, 0.9] });
+  bb.add(G.ball(1.1, 0), 0x9dba55, { pos: [0.5, 6.6, 0.2], scale: [1, 1.4, 1] });
+  const birchGeo = bb.geometry();
   const spots = [];
   // Forest clumps around the scene, kept away from paths and buildings.
   const clumps = [[-150, -40, 25], [-125, 70, 20], [60, -40, 30], [55, 80, 28], [-60, -130, 35], [-40, 140, 30], [-200, 20, 40], [130, 10, 50], [-120, -90, 25]];
@@ -151,11 +191,20 @@ function trees(rand) {
       spots.push([cx + Math.cos(a) * d, cz + Math.sin(a) * d]);
     }
   for (let i = 0; i < 160; i++) { const a = rand() * Math.PI * 2, d = 180 + rand() * 160; spots.push([CENTER_X + Math.cos(a) * d, Math.sin(a) * d]); }
-  const ok = spots.filter(([x, z]) => pathDistance(x, z) > 8 && !(x > -60 && x < 30 && z > -95 && z < 70));
-  const mesh = new THREE.InstancedMesh(geo, MAT.world, ok.length);
+  const ok = spots.filter(([x, z]) => pathDistance(x, z) > 8 && fieldStripe(x, z) < 0 && Math.hypot(x - POND.x, z - POND.z) > POND.r + 4 && !(x > -60 && x < 30 && z > -95 && z < 70));
+  const birches = ok.filter((_, i) => i % 4 === 1), oaks = ok.filter((_, i) => i % 4 !== 1);
+  const mesh = new THREE.InstancedMesh(geo, MAT.world, oaks.length);
+  const birch = new THREE.InstancedMesh(birchGeo, MAT.world, birches.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), c = new THREE.Color();
   const shadows = [];
-  ok.forEach(([x, z], i) => {
+  birches.forEach(([x, z], i) => {
+    const k = 0.8 + rand() * 0.5;
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6.28);
+    m.compose(new THREE.Vector3(x, groundHeight(x, z) - 0.2, z), q, s.set(k, k, k));
+    birch.setMatrixAt(i, m);
+    shadows.push([x, groundHeight(x, z), z, 3.5 * k, 3.5 * k, 0, 5 * k]);
+  });
+  oaks.forEach(([x, z], i) => {
     const k = 0.8 + rand() * 0.7;
     shadows.push([x, groundHeight(x, z), z, 5.5 * k, 5.5 * k, 0, 4 * k]);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rand() * 6.28);
@@ -164,7 +213,7 @@ function trees(rand) {
     mesh.setColorAt(i, c.setRGB(0.85 + rand() * 0.25, 0.9 + rand() * 0.2, 0.8 + rand() * 0.2));
   });
   const g = new THREE.Group();
-  g.add(mesh, staticShadows(shadows));
+  g.add(mesh, birch, staticShadows(shadows));
   return g;
 }
 
@@ -194,10 +243,40 @@ export function buildWorld(scene, avoid) {
   group.add(trees(rand));
 
   const free = (x, z) => pathDistance(x, z) > 1.8 && !avoid(x, z);
-  const tuft = paint(G.cone(0.18, 0.5, 3), 0x5d8a35, { pos: [0, 0.2, 0] });
-  group.add(scatter(tuft, 1800, rand, free, [0.7, 1.6]));
-  const flower = paint(G.ball(0.07, 0), 0xffffff, { pos: [0, 0.18, 0] });
-  group.add(scatter(flower, 500, rand, free, [0.8, 1.4], (c) => c.set([0xfff2a8, 0xffffff, 0xd9b3ff, 0xffd27a][Math.floor(rand() * 4)])));
+  const free2 = (x, z) => free(x, z) && fieldStripe(x, z) < 0 && Math.hypot(x - POND.x, z - POND.z) > POND.r + 1;
+  const tb = new Builder(8);
+  for (let i = 0; i < 4; i++) tb.add(G.cone(0.05, 0.55 + (i % 2) * 0.2, 3), 0x6e8c3c, { pos: [Math.cos(i * 1.7) * 0.08, 0.27, Math.sin(i * 1.7) * 0.08], rot: [Math.cos(i * 2.3) * 0.3, 0, Math.sin(i * 2.3) * 0.3] });
+  const tuft = tb.geometry();
+  group.add(scatter(tuft, 4200, rand, free2, [0.6, 1.5], (c) => c.setRGB(0.85 + rand() * 0.3, 0.85 + rand() * 0.25, 0.7 + rand() * 0.3)));
+  const flower = paint(G.ball(0.06, 0), 0xffffff, { pos: [0, 0.32, 0] });
+  group.add(scatter(flower, 900, rand, free2, [0.8, 1.5], (c) => c.set([0xfff2a8, 0xffffff, 0xc9a3f0, 0xffd27a, 0xe8584a][Math.floor(rand() * 5)])));
+  // Barley in the strip fields.
+  const stalk = new Builder(9);
+  for (let i = 0; i < 3; i++) stalk.add(G.cone(0.04, 0.9, 3), 0xd9b866, { pos: [i * 0.12 - 0.12, 0.45, (i % 2) * 0.1], rot: [0, 0, (i - 1) * 0.12] });
+  group.add(scatter(stalk.geometry(), 3200, rand, (x, z) => { const s = fieldStripe(x, z); return s >= 0 && s % 3 !== 1; }, [0.8, 1.2], (c) => c.setRGB(0.9 + rand() * 0.2, 0.85 + rand() * 0.2, 0.7 + rand() * 0.3)));
+  // Bushes.
+  const bush = new Builder(10);
+  bush.add(G.ball(0.9, 0), 0x4f6e32, { pos: [0, 0.6, 0] }).add(G.ball(0.7, 0), 0x5a7a38, { pos: [0.7, 0.5, 0.2] }).add(G.ball(0.6, 0), 0x47652d, { pos: [-0.6, 0.45, -0.2] });
+  group.add(scatter(bush.geometry(), 220, rand, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.7, 1.6]));
+  // Pond with reeds.
+  const water = new THREE.Mesh(new THREE.CircleGeometry(POND.r + 1.2, 28).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x4f7f95 }));
+  water.position.set(POND.x, -0.32, POND.z);
+  group.add(water);
+  const glint = new Builder(11);
+  for (let i = 0; i < 6; i++) glint.add(G.box(3 + i * 0.7, 0.01, 0.12), 0xcfe3e8, { pos: [POND.x - 2 + i * 0.6, -0.3, POND.z - 4 + i * 1.4], rot: [0, 0.6, 0] });
+  group.add(glint.mesh());
+  const reed = new Builder(12);
+  for (let i = 0; i < 5; i++) reed.add(G.cone(0.03, 1.4 + i * 0.12, 3), 0x7a8a46, { pos: [Math.cos(i * 1.3) * 0.15, 0.7, Math.sin(i * 1.3) * 0.15], rot: [Math.cos(i) * 0.15, 0, Math.sin(i) * 0.15] });
+  reed.add(G.cyl(0.04, 0.04, 0.25, 5), 0x5a3e26, { pos: [0, 1.5, 0] });
+  const reeds = new THREE.InstancedMesh(reed.geometry(), MAT.world, 90);
+  const rm = new THREE.Matrix4();
+  for (let i = 0; i < 90; i++) {
+    const a = rand() * Math.PI * 2, d = POND.r - 0.5 + rand() * 2.2;
+    const x = POND.x + Math.cos(a) * d, z = POND.z + Math.sin(a) * d, k = 0.7 + rand() * 0.6;
+    rm.makeScale(k, k, k).setPosition(x, Math.max(groundHeight(x, z), -0.35), z);
+    reeds.setMatrixAt(i, rm);
+  }
+  group.add(reeds);
   const rock = paint(G.dodeca(0.4), 0x8d8a83, { scale: [1, 0.6, 1] });
   group.add(scatter(rock, 120, rand, free, [0.5, 1.8]));
 
@@ -207,7 +286,7 @@ export function buildWorld(scene, avoid) {
   scene.fog = new THREE.FogExp2(WORLD.FOG_COLOR, WORLD.FOG_DENSITY);
   scene.background = new THREE.Color(WORLD.FOG_COLOR);
   const hemi = new THREE.HemisphereLight(0xc4d8ec, 0x6e6048, 1.15);
-  const sun = new THREE.DirectionalLight(0xffdcaa, 3.4);
+  const sun = new THREE.DirectionalLight(0xffe4bd, 3.2);
   sun.position.copy(SUN_DIR).multiplyScalar(100);
   scene.add(hemi, sun);
   return group;

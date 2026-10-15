@@ -21,7 +21,7 @@ export const SHADOW_MAT = new THREE.MeshBasicMaterial({
 const GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 
 // Shadow offset away from the sun for an object of height h.
-export function shadowOffset(h) { return { x: -SUN_DIR.x / SUN_DIR.y * h * 0.35, z: -SUN_DIR.z / SUN_DIR.y * h * 0.35 }; }
+export function shadowOffset(h) { return { x: -SUN_DIR.x / SUN_DIR.y * h * 0.13, z: -SUN_DIR.z / SUN_DIR.y * h * 0.13 }; }
 
 // Many static shadows in one draw call. items: [x, y, z, sizeX, sizeZ, yaw, height]
 export function staticShadows(items) {

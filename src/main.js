@@ -8,6 +8,7 @@ import { buildCapsule, placeRig } from './capsule.js';
 import { buildHands } from './hands.js';
 import { Audio } from './audio.js';
 import { initUI } from './ui.js';
+import { buildLife } from './life.js';
 
 const params = new URLSearchParams(location.search);
 const state = {
@@ -33,6 +34,7 @@ console.info('Trip check', timeline.report());
 
 const world = buildWorld(scene, occupied);
 const jelling = buildJelling(scene, timeline);
+const life = buildLife(jelling.group, timeline);
 const capsule = buildCapsule();
 scene.add(capsule.vehicle);
 capsule.rig.add(camera);
@@ -119,6 +121,7 @@ renderer.setAnimationLoop(() => {
   capsule.vehicle.position.set(st.x, CAPSULE.HOVER, st.z);
   capsule.vehicle.rotation.y = st.yaw;
   jelling.update(Math.max(t, 0));
+  life.update(Math.max(t, 0));
 
   const u = capsule.mist.material.uniforms;
   u.uOpacity.value = st.mist; u.uTunnel.value = st.tunnel; u.uLab.value = st.lab; u.uTime.value = t;
