@@ -12,12 +12,13 @@ export const CAPSULE = {
   ROWS: 5,
   ROW_PITCH: 1.0,          // distance between rows (m)
   FRONT_ROW_Z: -2.0,       // z of row 1 (forward is -z)
-  SEAT_X: 0.72,            // half distance between the two seats in a row
+  SEAT_X: 0.8,             // half distance between the two seats in a row
   SEAT_HEIGHT: 0.46,       // chair seat height (m)
   DESKTOP_EYE: 1.2,        // eye height in desktop mode (m)
-  HALF_WIDTH: 1.6,
-  FRONT_Z: -3.4,
-  REAR_Z: 3.2,
+  RADIUS: 3.7,             // octagon corner radius (m)
+  SILL: 0.45,              // glass starts here
+  WALL_TOP: 2.45,          // glass ends, dome starts
+  DOME_TOP: 3.55,
 };
 
 export const SEAT_COUNT = CAPSULE.ROWS * 2;

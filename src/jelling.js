@@ -13,7 +13,7 @@ export const SITES = {
   southMound: { x: -2, z: 46, r: 17, top: 10, h: 1.9 },
   church: { x: 0, z: -28 },
   stone: { x: 0, z: -14 },
-  palisadeX: -47, gate: [16, 24],
+  palisadeX: -47, gate: [13, 27],
 };
 
 export function southMoundHeight(x, z) {

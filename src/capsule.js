@@ -5,51 +5,120 @@ import { CAPSULE, SEAT_COUNT, seatPosition, WORLD } from './config.js';
 
 MAT.cabin.side = THREE.DoubleSide;
 
-const CREAM = 0xe9e4d6, BRASS = 0xa8894e, DARK = 0x2c3a42, TEAL = 0x2a7f86;
+const BRASS = 0xb08d4f, BRONZE = 0x3b332b, IRON = 0x24211e, WALNUT = 0x3a2c22, LEATHER = 0x6a2e24, DOME = 0x77726a;
+
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+// A box stretched between two points (for ribs and struts).
+function beam(b, from, to, thick, color) {
+  _a.set(...from); _b.set(...to);
+  const len = _a.distanceTo(_b);
+  _q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), _b.clone().sub(_a).normalize());
+  _e.setFromQuaternion(_q);
+  b.add(G.box(thick, len, thick), color, { pos: [(_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2], rot: [_e.x, _e.y, _e.z] });
+}
+
+// Octagon helpers: corner k sits at angle PI/8 + k*PI/4 from +z, so one flat side faces forward (-z).
+const corner = (k, r) => { const a = Math.PI / 8 + k * Math.PI / 4; return [r * Math.sin(a), r * Math.cos(a)]; };
+const sideMid = (k) => (k + 1) * Math.PI / 4; // angle of the side between corner k and k+1
+
+function ring(b, r, y, h, thick, color) {
+  const ap = r * Math.cos(Math.PI / 8), len = 2 * r * Math.sin(Math.PI / 8);
+  for (let k = 0; k < 8; k++) {
+    const a = sideMid(k);
+    b.add(G.box(len + thick * 0.8, h, thick), color, { pos: [ap * Math.sin(a), y, ap * Math.cos(a)], rot: [0, a, 0] });
+  }
+}
 
 function cabinShell() {
-  const { HALF_WIDTH: W, FRONT_Z: F, REAR_Z: R } = CAPSULE;
-  const L = R - F, cz = (F + R) / 2;
+  const { RADIUS: R, SILL, WALL_TOP: TOP, DOME_TOP } = CAPSULE;
   const b = new Builder(900);
-  b.add(G.box(W * 2, 0.1, L), 0x3c4a52, { pos: [0, -0.05, cz] });
-  // Lower walls and sills.
-  for (const s of [-1, 1]) {
-    b.add(G.box(0.12, 0.55, L), CREAM, { pos: [s * W, 0.275, cz] });
-    b.add(G.box(0.2, 0.05, L), BRASS, { pos: [s * (W - 0.08), 0.57, cz] });
-    b.add(G.box(0.14, 0.12, L), BRASS, { pos: [s * W, 2.06, cz] });
-    for (let z = F + 0.05; z <= R + 0.01; z += 1.1) b.add(G.box(0.1, 1.5, 0.12), DARK, { pos: [s * W, 1.32, z] });
+  // Floor: dark walnut with brass inlay rings.
+  b.add(G.cyl(R, R, 0.1, 8), WALNUT, { pos: [0, -0.05, 0], rot: [0, Math.PI / 8, 0], vary: 0.04 });
+  for (const r of [1.3, 2.6, R - 0.25]) b.add(G.torus(r, 0.018, 3, 8), BRASS, { pos: [0, 0.004, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  // Base wall (bronze) with a brass cap and rivets.
+  ring(b, R, SILL / 2, SILL, 0.12, BRONZE);
+  ring(b, R - 0.04, SILL + 0.02, 0.05, 0.2, BRASS);
+  for (let k = 0; k < 8; k++) {
+    const [x0, z0] = corner(k, R - 0.07), [x1, z1] = corner(k + 1, R - 0.07);
+    for (let i = 1; i < 10; i++) { const f = i / 10; b.add(G.ball(0.018, 0), BRASS, { pos: [x0 + (x1 - x0) * f, SILL * 0.55, z0 + (z1 - z0) * f] }); }
   }
-  // Roof as a shallow arc.
-  const Rr = 2.857, cy = -0.307, half = Math.asin(W / Rr);
-  b.add(new THREE.CylinderGeometry(Rr, Rr, L, 14, 1, true, -half, half * 2), CREAM, { pos: [0, cy, cz], rot: [-Math.PI / 2, 0, 0] });
-  for (let z = F + 0.05; z <= R + 0.01; z += 1.1)
-    b.add(G.torus(Rr - 0.03, 0.045, 4, 14, half * 2), BRASS, { pos: [0, cy, z], rot: [0, 0, Math.PI / 2 - half] });
-  // Front: dashboard, window pillars, frame.
-  b.add(G.box(W * 2, 0.5, 0.15), CREAM, { pos: [0, 0.25, F] });
-  b.add(G.box(W * 2 - 0.2, 0.08, 0.45), DARK, { pos: [0, 0.52, F + 0.22], rot: [0.18, 0, 0] });
-  b.add(G.box(W * 2, 0.12, 0.14), BRASS, { pos: [0, 2.06, F] });
-  b.add(G.box(W * 2, 0.05, 0.14), BRASS, { pos: [0, 0.53, F] });
-  // Rear wall with the time core.
-  b.add(G.box(W * 2, 2.5, 0.15), CREAM, { pos: [0, 1.25, R] });
-  b.add(G.torus(0.62, 0.07, 6, 24), BRASS, { pos: [0, 1.4, R - 0.1] });
-  // Seats with small tablet stands.
+  // Corner posts with brass collars.
+  for (let k = 0; k < 8; k++) {
+    const [x, z] = corner(k, R);
+    b.add(G.cyl(0.07, 0.09, TOP, 6), IRON, { pos: [x, TOP / 2, z] });
+    for (const y of [SILL + 0.04, TOP - 0.1, 1.45]) b.add(G.cyl(0.1, 0.1, 0.06, 8), BRASS, { pos: [x, y, z] });
+  }
+  // Top ring beam, dome panels, ribs and oculus.
+  ring(b, R, TOP, 0.16, 0.16, BRASS);
+  const rTop = 1.05, domeH = DOME_TOP - TOP;
+  b.add(new THREE.CylinderGeometry(rTop, R, domeH, 8, 1, true), DOME, { pos: [0, TOP + domeH / 2, 0], rot: [0, Math.PI / 8, 0], vary: 0.05 });
+  for (let k = 0; k < 8; k++) {
+    const [x0, z0] = corner(k, R - 0.02), [x1, z1] = corner(k, rTop);
+    beam(b, [x0, TOP, z0], [x1, DOME_TOP, z1], 0.07, BRASS);
+  }
+  for (const f of [0.35, 0.7]) { const r = R + (rTop - R) * f; b.add(G.torus(r * Math.cos(Math.PI / 8) / Math.cos(Math.PI / 8), 0.03, 3, 8), BRASS, { pos: [0, TOP + domeH * f - 0.03, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] }); }
+  b.add(G.torus(rTop, 0.06, 4, 8), BRASS, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  // Front console: low desk following the front three sides.
+  const ap = R * Math.cos(Math.PI / 8);
+  for (const k of [2, 3, 4]) {
+    const a = sideMid(k), len = 2 * (R - 0.55) * Math.sin(Math.PI / 8), d = ap - 0.5;
+    b.add(G.box(len + 0.05, 0.62, 0.42), BRONZE, { pos: [d * Math.sin(a), 0.31, d * Math.cos(a)], rot: [0, a, 0] });
+    b.add(G.box(len + 0.1, 0.05, 0.5), BRASS, { pos: [d * Math.sin(a), 0.64, d * Math.cos(a)], rot: [0, a, 0] });
+  }
+  for (let i = 0; i < 5; i++) b.add(G.cyl(0.11, 0.11, 0.04, 12), BRASS, { pos: [-1.0 + i * 0.5, 0.68, -ap + 0.48] });
+  // Leather seats and tablet stands.
+  const SH = CAPSULE.SEAT_HEIGHT;
   for (let n = 1; n <= SEAT_COUNT; n++) {
     const p = seatPosition(n);
-    b.add(G.box(0.5, 0.1, 0.48), TEAL, { pos: [p.x, CAPSULE.SEAT_HEIGHT - 0.05, p.z] });
-    b.add(G.box(0.5, 0.72, 0.08), TEAL, { pos: [p.x, CAPSULE.SEAT_HEIGHT + 0.36, p.z + 0.27], rot: [0.12, 0, 0] });
-    b.add(G.cyl(0.05, 0.08, CAPSULE.SEAT_HEIGHT - 0.1, 8), DARK, { pos: [p.x, (CAPSULE.SEAT_HEIGHT - 0.1) / 2, p.z] });
-    b.add(G.cyl(0.018, 0.018, 0.88, 6), DARK, { pos: [p.x, 0.44, p.z - 0.6] });
-    b.add(G.box(0.46, 0.3, 0.03), DARK, { pos: [p.x, 0.97, p.z - 0.6], rot: [-0.55, 0, 0] });
+    b.add(G.box(0.54, 0.13, 0.5), LEATHER, { pos: [p.x, SH - 0.06, p.z], vary: 0.05 });
+    b.add(G.box(0.54, 0.5, 0.12), LEATHER, { pos: [p.x, SH + 0.28, p.z + 0.27], rot: [0.12, 0, 0], vary: 0.05 });
+    for (const s of [-1, 1]) {
+      b.add(G.box(0.07, 0.24, 0.46), BRONZE, { pos: [p.x + s * 0.3, SH + 0.08, p.z + 0.02] });
+      b.add(G.box(0.09, 0.03, 0.48), BRASS, { pos: [p.x + s * 0.3, SH + 0.21, p.z + 0.02] });
+    }
+    b.add(G.cyl(0.05, 0.05, SH - 0.12, 8), BRASS, { pos: [p.x, (SH - 0.12) / 2, p.z] });
+    b.add(G.cyl(0.2, 0.22, 0.03, 8), BRONZE, { pos: [p.x, 0.015, p.z] });
+    b.add(G.cyl(0.016, 0.016, 0.88, 6), BRASS, { pos: [p.x, 0.44, p.z - 0.6] });
+    b.add(G.box(0.47, 0.31, 0.03), IRON, { pos: [p.x, 0.97, p.z - 0.6], rot: [-0.55, 0, 0] });
   }
   const shell = b.mesh(MAT.cabin);
 
-  // Glowing details.
+  // Lights: warm lamps on the posts, gauge faces, a thin floor light line.
   const g = new Builder(901);
-  g.add(G.box(0.24, 0.012, L - 0.4), 0x2f8f8a, { pos: [0, 0.006, cz] });
-  g.add(G.box(0.06, 0.03, L - 0.3), 0xbff5ee, { pos: [0, 2.53, cz] });
-  for (let i = 0; i < 9; i++) g.add(G.box(0.05, 0.02, 0.05), [0x56e39f, 0xffc857, 0x6ec6ff][i % 3], { pos: [-0.9 + i * 0.22, 0.58, F + 0.2] });
-  g.add(G.ball(0.3, 1), 0x9feaff, { pos: [0, 1.4, R - 0.12], scale: [1, 1, 0.3] });
-  return { shell, glow: g.mesh(MAT.glow) };
+  for (let k = 0; k < 8; k++) { const [x, z] = corner(k, R - 0.14); g.add(G.ball(0.045, 1), 0xffc77a, { pos: [x, TOP - 0.28, z] }); }
+  for (let i = 0; i < 5; i++) g.add(G.cyl(0.085, 0.085, 0.01, 12), [0xf3e6c4, 0x9fe3d6, 0xf3e6c4, 0xffc77a, 0xf3e6c4][i], { pos: [-1.0 + i * 0.5, 0.705, -ap + 0.48] });
+  g.add(G.box(0.025, 0.006, 4.6), 0xcfe9e4, { pos: [0, 0.004, 0] });
+  ring(g, R - 0.1, TOP - 0.1, 0.012, 0.012, 0xdff6f2);
+  ring(g, R - 0.2, 0.006, 0.006, 0.02, 0x8fd3c8);
+  const glow = g.mesh(MAT.glow);
+
+  // Glass: very faint tint so the walls read as glass without hiding anything.
+  const gl = new Builder(903);
+  for (let k = 0; k < 8; k++) {
+    const a = sideMid(k), len = 2 * R * Math.sin(Math.PI / 8), d = ap - 0.02;
+    gl.add(new THREE.PlaneGeometry(len, TOP - SILL), 0xbfe6ef, { pos: [d * Math.sin(a), (TOP + SILL) / 2, d * Math.cos(a)], rot: [0, a, 0] });
+  }
+  gl.add(new THREE.CircleGeometry(rTop, 8), 0xbfe6ef, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  const glass = new THREE.Mesh(gl.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.07, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+  glass.renderOrder = 5;
+  return { shell, glow, glass };
+}
+
+// Armillary sphere above the console: the "engine" of the time machine.
+function armillary() {
+  const group = new THREE.Group();
+  group.position.set(0, 2.95, -0.2);
+  const b = new Builder(904);
+  b.add(G.cyl(0.012, 0.012, 0.6, 6), BRASS, { pos: [0, 0.62, 0.1], rot: [0.3, 0, 0] });
+  b.add(G.torus(0.42, 0.016, 4, 32), BRASS, { rot: [Math.PI / 2, 0, 0] });
+  group.add(b.mesh(MAT.cabin));
+  const rings = [0.36, 0.3, 0.24].map((r, i) => {
+    const m = new THREE.Mesh(new Builder(905 + i).add(G.torus(r, 0.012 + i * 0.002, 4, 32), i === 1 ? 0xd9b46a : BRASS).geometry(), MAT.cabin);
+    group.add(m); return m;
+  });
+  const orb = new THREE.Mesh(new Builder(908).add(G.ball(0.07, 2), 0x9feaff).geometry(), MAT.glow);
+  group.add(orb);
+  return { group, rings, orb };
 }
 
 // Mist shell around the capsule: hides the outside during time jumps / comfort mode.
@@ -91,8 +160,8 @@ function mistShell() {
 function sign() {
   const { canvas, ctx, tex } = canvasTexture(1024, 192);
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.32), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
-  mesh.position.set(0, 2.24, CAPSULE.FRONT_Z + 0.12);
-  mesh.rotation.x = 0.18;
+  mesh.position.set(0, 2.3, -CAPSULE.RADIUS * Math.cos(Math.PI / 8) + 0.14);
+  mesh.rotation.x = 0.12;
   let last = '';
   return {
     mesh,
@@ -165,14 +234,10 @@ function tablets() {
 
 export function buildCapsule() {
   const vehicle = new THREE.Group();
-  const { shell, glow } = cabinShell();
-  vehicle.add(shell, glow);
-  // Rotating rings in the time core (decoration, slow).
-  const core = new THREE.Group();
-  core.position.set(0, 1.4, CAPSULE.REAR_Z - 0.15);
-  const ringGeo = new Builder(902).add(G.torus(0.45, 0.025, 4, 24), 0x9feaff).geometry();
-  const rings = [0, 1].map((i) => { const m = new THREE.Mesh(ringGeo, MAT.glow); m.scale.setScalar(1 - i * 0.25); core.add(m); return m; });
-  vehicle.add(core);
+  const { shell, glow, glass } = cabinShell();
+  vehicle.add(shell, glow, glass);
+  const arm = armillary();
+  vehicle.add(arm.group);
   const mist = mistShell();
   vehicle.add(mist);
   const s = sign();
@@ -184,8 +249,11 @@ export function buildCapsule() {
   return {
     vehicle, rig, mist, sign: s, tablets: tabs,
     animateCore(t, speedUp) {
-      rings[0].rotation.y = t * (0.4 + speedUp * 2.5);
-      rings[1].rotation.x = t * (0.3 + speedUp * 2.0);
+      const k = 1 + speedUp * 6;
+      arm.rings[0].rotation.set(t * 0.21 * k, t * 0.13 * k, 0);
+      arm.rings[1].rotation.set(0, t * 0.17 * k, t * 0.11 * k);
+      arm.rings[2].rotation.set(t * 0.09 * k, 0, t * 0.23 * k);
+      arm.orb.scale.setScalar(1 + speedUp * 0.8 + 0.06 * Math.sin(t * 2));
     },
   };
 }
