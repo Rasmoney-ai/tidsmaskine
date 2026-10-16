@@ -40,7 +40,9 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 ## 3D-modeller
 
 - Bestillingslisten står i `MODELLER.md`: GLB, ét mesh og ét materiale pr. model, figurer i T-pose med Mixamo-skelet.
-- Færdige modeller ligger i `models/` og indlæses af `src/models.js` (GLTFLoader r170 i `vendor/`). Mangler en fil, bruges pladsholderen fra koden.
+- Færdige modeller (63 stk. fra Claude Design, ids som i `MODELLER.md`) ligger i `models/` og indlæses af `src/models.js` (GLTFLoader r170 i `vendor/`). Mangler en fil, bruges pladsholderen fra koden.
+- Statiske modeller slås sammen til ét mesh og gentages med instancing (træer, sten, palisade, hegn, får). Figurer styres med `Humanoid` (arme, hænder, gang) og dyr med `quadruped`.
+- Runestenens malede side A (runerne) drejes mod kapslen med `RUNE_FACE_YAW` i `jelling.js`.
 - Figurer animeres i koden ved at dreje knoglerne (`aimBone`). Flere kopier af samme figur kræver SkeletonUtils (spørg først).
 - Test: `?mute=1` slår lyden fra, og `app.inspect = [x, y, z, tx, ty, tz]` i konsollen giver et frit kamera til at se på modeller.
 

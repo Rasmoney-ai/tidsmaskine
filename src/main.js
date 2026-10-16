@@ -35,10 +35,10 @@ const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 1
 const timeline = new Timeline();
 console.info('Trip check', timeline.report());
 
-const world = buildWorld(scene, occupied);
-const models = await loadModels();
+const models = await loadModels((f) => { const el = document.getElementById('loading'); if (el) el.textContent = f < 1 ? `Indlæser modeller … ${Math.round(f * 100)} %` : ''; });
+const world = buildWorld(scene, occupied, models);
 const jelling = buildJelling(scene, timeline, models);
-const life = buildLife(jelling.group, timeline);
+const life = buildLife(jelling.group, timeline, models);
 const capsule = buildCapsule({ mapDrawer: (ctx, r, x, z, yaw) => drawJellingMap(ctx, r, x, z, yaw, timeline.stops) });
 scene.add(capsule.vehicle);
 capsule.rig.add(camera);

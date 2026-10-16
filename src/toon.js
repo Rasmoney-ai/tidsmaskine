@@ -44,6 +44,12 @@ export function thickOutline(thick) {
   return m;
 }
 
+// Toon material with a texture (painted models such as the runestones).
+export function toonMap(map) {
+  if (map) map.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshToonMaterial({ map, gradientMap: GRADIENT });
+}
+
 // Deterministic random numbers.
 export function rng(seed) {
   let a = seed >>> 0;

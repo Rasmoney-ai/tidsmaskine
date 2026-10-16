@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { MAT, Builder, G, rng, paint } from './toon.js';
 import { WORLD } from './config.js';
 import { SUN_DIR, staticShadows } from './shadows.js';
+import { instanced } from './models.js';
 
 const CENTER_X = -60, CENTER_Z = 0;
 
@@ -169,7 +170,7 @@ function sky() {
   return m;
 }
 
-function trees(rand) {
+function trees(rand, M = {}) {
   const b = new Builder(5);
   b.add(G.cyl(0.25, 0.35, 3, 6), 0x6b4a2e, { pos: [0, 1.5, 0] });
   b.add(G.ball(2.2, 0), 0x3f7a3a, { pos: [0, 4.4, 0], scale: [1, 1.15, 1] });
@@ -192,6 +193,22 @@ function trees(rand) {
     }
   for (let i = 0; i < 100; i++) { const a = rand() * Math.PI * 2, d = 180 + rand() * 160; spots.push([CENTER_X + Math.cos(a) * d, Math.sin(a) * d]); }
   const ok = spots.filter(([x, z]) => pathDistance(x, z) > 8 && fieldStripe(x, z) < 0 && Math.hypot(x - POND.x, z - POND.z) > POND.r + 4 && !(x > -60 && x < 30 && z > -95 && z < 70));
+  if (M.e1a_eg && M.e2a_birk && M.e3_fjerntrae) {
+    const keys = ['e1a_eg', 'e1b_eg', 'e1c_eg', 'e2a_birk', 'e2b_birk'].filter((k) => M[k]);
+    const lists = Object.fromEntries(keys.concat('e3_fjerntrae').map((k) => [k, []]));
+    const shadows = [];
+    ok.forEach(([x, z], i) => {
+      const far = Math.hypot(x - CENTER_X, z - CENTER_Z) > 170;
+      const key = far ? 'e3_fjerntrae' : i % 4 === 1 ? keys.filter((k) => k.includes('birk'))[i % 2] || keys[0] : keys.filter((k) => k.includes('eg'))[i % 3] || keys[0];
+      const k = (far ? 1.6 : 0.85) + rand() * 0.45;
+      lists[key].push({ x, z, y: groundHeight(x, z) - 0.1, yaw: rand() * 6.28, s: k });
+      if (!far) shadows.push([x, groundHeight(x, z), z, 6 * k, 6 * k, 0, 4 * k]);
+    });
+    const g = new THREE.Group();
+    g.instanced = Object.entries(lists).filter(([, l]) => l.length).map(([key, l]) => instanced(M[key], l));
+    g.add(...g.instanced, staticShadows(shadows));
+    return g;
+  }
   const birches = ok.filter((_, i) => i % 4 === 1), oaks = ok.filter((_, i) => i % 4 !== 1);
   const mesh = new THREE.InstancedMesh(geo, MAT.world, oaks.length);
   const birch = new THREE.InstancedMesh(birchGeo, MAT.world, birches.length);
@@ -236,12 +253,12 @@ function scatter(geo, count, rand, filter, scaleRange, colorFn) {
   return mesh;
 }
 
-export function buildWorld(scene, avoid) {
+export function buildWorld(scene, avoid, M = {}) {
   const group = new THREE.Group();
   const rand = rng(42);
   group.add(terrainMesh(300, 100, false));
   group.add(terrainMesh(1000, 40, true));
-  const forest = trees(rand);
+  const forest = trees(rand, M);
   group.add(forest);
   // Small decoration that the automatic quality control may hide first.
   const decor = new THREE.Group();
@@ -255,7 +272,20 @@ export function buildWorld(scene, avoid) {
   // Bushes.
   const bush = new Builder(10);
   bush.add(G.ball(0.9, 0), 0x4f6e32, { pos: [0, 0.6, 0] }).add(G.ball(0.7, 0), 0x5a7a38, { pos: [0.7, 0.5, 0.2] }).add(G.ball(0.6, 0), 0x47652d, { pos: [-0.6, 0.45, -0.2] });
-  decor.add(scatter(bush.geometry(), 220, rand, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.7, 1.6]));
+  const pick = (keys) => keys.filter((k) => M[k]);
+  const scatterModels = (keys, count, filter, range) => {
+    // Spread `count` copies over the given model variants.
+    const lists = keys.map(() => []);
+    for (let tries = 0, n = 0; n < count && tries < count * 6; tries++) {
+      const x = CENTER_X + (rand() - 0.5) * 280, z = CENTER_Z + (rand() - 0.5) * 280;
+      if (!filter(x, z)) continue;
+      lists[n % keys.length].push({ x, z, y: groundHeight(x, z), yaw: rand() * 6.28, s: range[0] + rand() * (range[1] - range[0]) });
+      n++;
+    }
+    return keys.map((k, i) => instanced(M[k], lists[i]));
+  };
+  if (pick(['e4a_busk', 'e4b_busk']).length) decor.add(...scatterModels(pick(['e4a_busk', 'e4b_busk']), 220, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.8, 1.5]));
+  else decor.add(scatter(bush.geometry(), 220, rand, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.7, 1.6]));
   // Pond with reeds.
   const water = new THREE.Mesh(new THREE.CircleGeometry(POND.r + 1.2, 28).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x4f7f95 }));
   water.position.set(POND.x, -0.32, POND.z);
@@ -266,7 +296,7 @@ export function buildWorld(scene, avoid) {
   const reed = new Builder(12);
   for (let i = 0; i < 5; i++) reed.add(G.cone(0.03, 1.4 + i * 0.12, 3), 0x7a8a46, { pos: [Math.cos(i * 1.3) * 0.15, 0.7, Math.sin(i * 1.3) * 0.15], rot: [Math.cos(i) * 0.15, 0, Math.sin(i) * 0.15] });
   reed.add(G.cyl(0.04, 0.04, 0.25, 5), 0x5a3e26, { pos: [0, 1.5, 0] });
-  const reeds = new THREE.InstancedMesh(reed.geometry(), MAT.world, 90);
+  const reeds = M.e6_siv ? new THREE.InstancedMesh(instanced(M.e6_siv, []).geometry, MAT.world, 90) : new THREE.InstancedMesh(reed.geometry(), MAT.world, 90);
   const rm = new THREE.Matrix4();
   for (let i = 0; i < 90; i++) {
     const a = rand() * Math.PI * 2, d = POND.r - 0.5 + rand() * 2.2;
@@ -276,7 +306,8 @@ export function buildWorld(scene, avoid) {
   }
   group.add(reeds);
   const rock = paint(G.dodeca(0.4), 0x8d8a83, { scale: [1, 0.6, 1] });
-  decor.add(scatter(rock, 120, rand, free, [0.5, 1.8]));
+  if (pick(['e5a_sten', 'e5b_sten', 'e5c_sten']).length) decor.add(...scatterModels(pick(['e5a_sten', 'e5b_sten', 'e5c_sten']), 120, free, [0.6, 1.4]));
+  else decor.add(scatter(rock, 120, rand, free, [0.5, 1.8]));
 
   scene.add(group);
   scene.add(sky());

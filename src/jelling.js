@@ -4,7 +4,7 @@ import { Builder, G, MAT, rng, paint, canvasTexture, outline, thickOutline } fro
 import { groundHeight } from './world.js';
 import { makePerson, makeSheep, makeDog, tool, walkPose, standPose } from './people.js';
 import { staticShadows, blob } from './shadows.js';
-import { riggedCharacter, mergedProp, aimBone, restPosition } from './models.js';
+import { prop, instanced, texturedProp, parts, Humanoid, quadruped } from './models.js';
 
 const smooth = (x) => { x = Math.min(Math.max(x, 0), 1); return x * x * (3 - 2 * x); };
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -187,7 +187,7 @@ function palisade() {
   return g;
 }
 
-function mounds() {
+function mounds(extras = true) {
   const g = new THREE.Group();
   const n = SITES.northMound;
   const prof = [new THREE.Vector2(n.r + 0.6, -0.5)];
@@ -208,6 +208,7 @@ function mounds() {
   }
   g.add(place(new THREE.Mesh(south, MAT.world), s.x, s.z, 0, -0.3));
 
+  if (extras) {
   // Turf stacks near the foot of the south mound.
   const turf = new Builder(73);
   const r = rng(74);
@@ -221,11 +222,12 @@ function mounds() {
   cart.add(G.box(0.1, 0.1, 2.0), 0x7a5532, { pos: [0, 0.7, 2.0] });
   for (let i = 0; i < 6; i++) cart.add(G.box(0.5, 0.15, 0.38), 0x5e7a36, { pos: [-0.3 + (i % 2) * 0.6, 0.92, -0.6 + Math.floor(i / 2) * 0.5] });
   g.add(place(cart.mesh(), -33, 40, 0.4));
+  }
   return g;
 }
 
 // Ship setting: two curved rows of standing stones, center at the north mound.
-function shipSetting(route, shadows) {
+function shipSetting(route, shadows, M = {}) {
   const nearRoute = (x, z) => route.some((p) => Math.hypot(p.x - x, p.z - z) < 4);
   const n = SITES.northMound;
   const half = 130, W = 30;
@@ -241,6 +243,18 @@ function shipSetting(route, shadows) {
     }
   }
   spots.push([n.x, n.z - half], [n.x, n.z + half]);
+  if (M.c3a_sten && M.c3b_sten && M.c3c_sten && M.c3d_sten) {
+    // Four stone shapes; the tall one (d) also marks the stem and stern.
+    const r = rng(82), keys = ['c3a_sten', 'c3b_sten', 'c3c_sten', 'c3d_sten'], lists = [[], [], [], []];
+    spots.forEach(([x, z]) => {
+      const end = Math.abs(z - n.z) > half - 8, v = end ? 3 : Math.floor(r() * 4);
+      lists[v].push({ x, z, y: groundHeight(x, z) - 0.08, yaw: Math.atan2(x - n.x, 0) + (r() - 0.5) * 0.5, s: end ? 1.3 : 0.9 + r() * 0.25 });
+      shadows.push([x, groundHeight(x, z), z, 2.2, 2.2, 0, 1.6]);
+    });
+    const g = new THREE.Group();
+    lists.forEach((l, i) => { if (l.length) g.add(instanced(M[keys[i]], l)); });
+    return g;
+  }
   const geo = paint(G.dodeca(0.6), 0x8e8a82, { scale: [1, 2.2, 0.75], pos: [0, 0.8, 0], vary: 0.08, rand: rng(81) });
   const mesh = new THREE.InstancedMesh(geo, MAT.world, spots.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), c = new THREE.Color(), r = rng(82);
@@ -300,6 +314,8 @@ const RUNES = {
   þ: [[[.1, 0], [.1, 1]], [[.1, .25], [.4, .45], [.1, .65]]],
   u: [[[.1, 1], [.1, 0], [.4, .3], [.4, 1]]],
 };
+// Turn of the runestone model so its rune face (side A) looks at the capsule's stop.
+const RUNE_FACE_YAW = -2 * Math.PI / 3;
 const RUNE_LINES = ['haraltr:kunukR:baþ:kaurua', 'kubl:þausi:aft:kurm', 'faþur:sin:auk:aft:þourui', 'muþur:sina:sa:haraltr:ias'];
 
 function runeTexture() {
@@ -344,9 +360,19 @@ function runeTexture() {
   return tex;
 }
 
-function runestones() {
+function runestones(M = {}) {
   const g = new THREE.Group();
   const s = SITES.stone;
+  if (M.d1_runesten) {
+    const big = texturedProp(M.d1_runesten);
+    big.rotation.y = RUNE_FACE_YAW;
+    g.add(big);
+    if (M.d2_gormsten) { const small = texturedProp(M.d2_gormsten); small.position.set(3, 0, -2.5); small.rotation.y = 0.4; g.add(small); }
+    const chips = new Builder(104), rr = rng(105);
+    for (let i = 0; i < 18; i++) chips.add(G.dodeca(0.05 + rr() * 0.05), 0xb0aa9f, { pos: [(rr() - 0.5) * 1.6, 0.03, 0.9 + rr() * 0.9] });
+    g.add(chips.mesh());
+    return place(g, s.x, s.z, Math.atan2(-5, 5));
+  }
   // Harald's stone: three-sided, slightly leaning, ~2.4 m tall.
   const shape = new THREE.CylinderGeometry(0.55, 0.9, 2.45, 3, 1);
   const stone = new THREE.Mesh(paint(shape, 0xa8a196, { pos: [0, 1.2, 0], vary: 0.05, rand: rng(102) }), MAT.world);
@@ -465,6 +491,7 @@ function props() {
 }
 
 export function buildJelling(scene, timeline, models = {}) {
+  const M = models;
   const group = new THREE.Group();
   const actors = [];
   const shadows = [];
@@ -477,33 +504,75 @@ export function buildJelling(scene, timeline, models = {}) {
   const add = (...objs) => zones[zone].add(...objs);
   const act = (a) => { a.zone = zone; actors.push(a); };
   const emit = (e) => { e.zone = zone; emitters.push(e); };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const gy = (x, z) => groundHeight(x, z);
+  // A static model placed on the ground (optionally with an ink outline).
+  const modelAt = (key, x, z, yaw = 0, outlineMat = null) => {
+    const m = prop(M[key]);
+    if (outlineMat) outline(m, outlineMat);
+    return place(m, x, z, yaw);
+  };
+  // A rigged figure placed on the ground with a soft shadow.
+  const figure = (key, x, z, yaw) => {
+    const h = new Humanoid(M[key]);
+    h.root.add(blob(0.9));
+    add(place(h.root, x, z, yaw));
+    return h;
+  };
+  const item = (key) => prop(M[key]);
 
   // --- Village ---------------------------------------------------------
-  add(place(longhouse(22, 7.2, 301), -96, 0));
-  add(place(longhouse(18, 6.4, 302), -78, 38, 0.06));
-  add(place(pitHouse(303), -110, 36, 0.3));
-  add(place(pitHouse(304), -64, 4, -0.4));
-  add(place(woodpile(305), -106, 29, 0.2));
-  add(fenceRing(-122, 2, 7, r));
-  add(props());
-  add(place(loom(), -88.5, 8, -Math.PI / 2));
-  const fire = place(firePit(), -84, 12);
-  add(fire);
-  for (const s of [smoke(-96, 5.4, 0, 1), smoke(-78, 5.4, 38, 2)]) { add(s.group); act(s); }
-  act({ update(t) { fire.flame.scale.set(1 + 0.12 * Math.sin(t * 11), 1 + 0.25 * Math.sin(t * 7.3) + 0.1 * Math.sin(t * 17), 1 + 0.12 * Math.cos(t * 9)); } });
+  if (M.b1_langhus) add(modelAt('b1_langhus', -96, 0, Math.PI / 2)); else add(place(longhouse(22, 7.2, 301), -96, 0));
+  if (M.b2_langhus_lille) add(modelAt('b2_langhus_lille', -78, 38, Math.PI / 2 + 0.06)); else add(place(longhouse(18, 6.4, 302), -78, 38, 0.06));
+  if (M.b3_grubehus) add(instanced(M.b3_grubehus, [{ x: -110, y: gy(-110, 36), z: 36, yaw: 0.3 }, { x: -64, y: gy(-64, 4), z: 4, yaw: -0.4 }]));
+  else { add(place(pitHouse(303), -110, 36, 0.3)); add(place(pitHouse(304), -64, 4, -0.4)); }
+  if (M.b5_braende) add(modelAt('b5_braende', -106.5, 30.5, 0.2)); else add(place(woodpile(305), -106, 29, 0.2));
+  // Sheep pen: woven fence modules on a circle, one gap as the opening.
+  if (M.b11_hegn) {
+    const cx = -122, cz = 2, rad = 7, n = Math.round((Math.PI * 2 * rad) / 2.06), list = [];
+    for (let i = 1; i < n; i++) { const a = (i / n) * Math.PI * 2; list.push({ x: cx + Math.cos(a) * rad, y: gy(cx, cz), z: cz + Math.sin(a) * rad, yaw: -a - Math.PI / 2 }); }
+    add(instanced(M.b11_hegn, list));
+  } else add(fenceRing(-122, 2, 7, r));
+  if (M.b7_toende && M.b8_broend && M.b9_fisk && M.b10_baenk) {
+    add(instanced(M.b7_toende, [[-89, 4.6], [-88.3, 5.4], [-81, 34], [-74.5, 34.4], [-103, 4.8]].map(([x, z], i) => ({ x, z, y: gy(x, z), yaw: i }))));
+    add(modelAt('b8_broend', -96, 32, 0.3));
+    if (M.f8_spand) add(place(item('f8_spand'), -95.1, 33.2, 0.5, 0.37));
+    add(modelAt('b9_fisk', -100, 9, Math.PI / 2));
+    add(instanced(M.b10_baenk, [[-84, 9.5, 0.2], [-73, 32, -0.1]].map(([x, z, yaw]) => ({ x, z, y: gy(x, z), yaw }))));
+  } else add(props());
+  // Loom facing east (+x); the weaver stands in front of it.
+  const LOOM = { x: -88.5, z: 8, yaw: Math.PI / 2 };
+  add(M.b4_vaev ? modelAt('b4_vaev', LOOM.x, LOOM.z, LOOM.yaw) : place(loom(), LOOM.x, LOOM.z, -Math.PI / 2));
+  // Fire with flickering flames.
+  let flame;
+  if (M.b6_ildsted) { const f = parts(M.b6_ildsted); add(place(f.root, -84, 12)); flame = f.parts.flammer; }
+  else { const fire = place(firePit(), -84, 12); add(fire); flame = fire.flame; }
+  act({ update(t) { flame.scale.set(1 + 0.12 * Math.sin(t * 11), 1 + 0.25 * Math.sin(t * 7.3) + 0.1 * Math.sin(t * 17), 1 + 0.12 * Math.cos(t * 9)); } });
+  for (const s of [smoke(-96, 5.4, 0, 1), smoke(-78, 5.1, 38, 2)]) { add(s.group); act(s); }
 
   // Weaver at the loom.
-  const weaver = makePerson({ dress: 0x4f7a8c, apron: 0xc9a86b, brooch: 0xd9b44a, hair: 0xc68b3e, longHair: true, headscarf: 0xe8dcc0, skin: SKIN(1), name: 'B13_kvinde_ved_vaeven' });
-  add(place(weaver.root, -87.6, 8, -Math.PI / 2));
-  act({ update(t) {
-    standPose(weaver, t, 2);
-    weaver.head.rotation.y = 0;
-    const k = Math.sin(t * 1.4);
-    weaver.armL.rotation.x = -1.2 + 0.1 * k; weaver.armR.rotation.x = -1.2 - 0.1 * k;
-    weaver.armL.rotation.z = -0.3 + 0.3 * k; weaver.armR.rotation.z = 0.3 + 0.3 * k;
-  } });
+  if (M.b13_kvinde) {
+    const w = figure('b13_kvinde', LOOM.x + 0.8, LOOM.z, LOOM.yaw + Math.PI);
+    const hl = V(0, 0, 0), hr = V(0, 0, 0);
+    act({ update(t) {
+      w.stand(t, 2, 0.1);
+      const k = Math.sin(t * 1.4);
+      w.reach('L', hl.set(0.12 + 0.18 * k, 1.32 + 0.05 * Math.sin(t * 2.8), 0.42));
+      w.reach('R', hr.set(-0.12 + 0.18 * k, 1.3 - 0.05 * Math.sin(t * 2.8), 0.42));
+      w.B.Head.rotation.set(0.12, 0.15 * k, 0);
+    } });
+  } else {
+    const weaver = makePerson({ dress: 0x4f7a8c, apron: 0xc9a86b, brooch: 0xd9b44a, hair: 0xc68b3e, longHair: true, headscarf: 0xe8dcc0, skin: SKIN(1), name: 'B13_kvinde_ved_vaeven' });
+    add(place(weaver.root, LOOM.x + 0.9, LOOM.z, -Math.PI / 2));
+    act({ update(t) {
+      standPose(weaver, t, 2); weaver.head.rotation.y = 0;
+      const k = Math.sin(t * 1.4);
+      weaver.armL.rotation.x = -1.2 + 0.1 * k; weaver.armR.rotation.x = -1.2 - 0.1 * k;
+      weaver.armL.rotation.z = -0.3 + 0.3 * k; weaver.armR.rotation.z = 0.3 + 0.3 * k;
+    } });
+  }
 
-  // Man chopping wood (strike every 2.4 s). Uses the Claude Design model (B14 + axe) when loaded.
+  // Man chopping wood (strike every 2.4 s).
   const CHOP = 2.4, chopX = -104.4, chopZ = 28.4, chopYaw = Math.PI / 2 + 0.2;
   // Phase of the chop: 0 = axe down in the log, 1 = raised over the shoulder.
   const chopLift = (t) => {
@@ -515,42 +584,31 @@ export function buildJelling(scene, timeline, models = {}) {
   const logGeo = new Builder(306);
   logGeo.add(G.cyl(0.3, 0.33, 0.5, 9), 0x7a5532, { pos: [0, 0.25, 0], vary: 0.06 });
   logGeo.add(G.cyl(0.29, 0.29, 0.02, 9), 0xc9a26e, { pos: [0, 0.505, 0] });
-  if (models.man) {
-    const man = riggedCharacter(models.man), B = man.bones;
-    if (models.axe) { const axe = mergedProp(models.axe); axe.position.set(-0.06, 0, 0); B.RightHand.add(axe); }
-    const restR = restPosition(B.RightHand, man.root).sub(restPosition(B.RightArm, man.root)).normalize();
-    const restL = restPosition(B.LeftHand, man.root).sub(restPosition(B.LeftArm, man.root)).normalize();
-    const shR = restPosition(B.RightArm, man.root), shL = restPosition(B.LeftArm, man.root);
-    man.root.add(blob(0.9));
+  if (M.b14_mand) {
+    const man = figure('b14_mand', chopX, chopZ, chopYaw), B = man.B;
+    if (M.f1_oekse) { const axe = item('f1_oekse'); axe.position.set(-0.06, 0, 0); man.attach('R', axe); }
     const log = logGeo.mesh(); log.position.set(0, 0, 0.78); man.root.add(log);
-    add(place(man.root, chopX, chopZ, chopYaw));
-    const Z = new THREE.Vector3(0, 0, 1), Y = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3();
-    const lowHand = new THREE.Vector3(0, 0.9, 0.5), upHand = new THREE.Vector3(0, 1.98, -0.08);
-    const lowAxe = new THREE.Vector3(0, -0.82, 0.57), upAxe = new THREE.Vector3(0, -0.25, -1);
-    const hand = new THREE.Vector3(), handL = new THREE.Vector3(), axeDir = new THREE.Vector3(), d = new THREE.Vector3();
-    B.LeftUpLeg.rotation.z = 0.1; B.RightUpLeg.rotation.z = -0.1;
+    const lowHand = V(0, 0.9, 0.5), upHand = V(0, 1.98, -0.08), lowAxe = V(0, -0.82, 0.57), upAxe = V(0, -0.25, -1);
+    const hand = V(0, 0, 0), handL = V(0, 0, 0), axeDir = V(0, 0, 0), d = V(0, 0, 0);
     act({ update(t) {
       const k = chopLift(t);
+      man.legs(0, 0);
+      B.LeftUpLeg.rotation.z = 0.1; B.RightUpLeg.rotation.z = -0.1;
       hand.lerpVectors(lowHand, upHand, k);
       axeDir.lerpVectors(lowAxe, upAxe, k).normalize();
       handL.copy(hand).addScaledVector(axeDir, -0.13);
       B.Spine1.rotation.x = 0.22 * (1 - k) - 0.04;
-      B.Head.rotation.x = 0.18 * (1 - k);
-      // Arms point at the grip; the arm twist reference stays stable (side vector + a bit of forward).
-      d.subVectors(hand, shR).normalize();
-      aimBone(B.RightArm, man.root, restR, Z, d, ref.crossVectors(Y, d).addScaledVector(Z, 0.3));
-      // The wrist turns so the axe handle points along axeDir.
-      aimBone(B.RightHand, man.root, Z, restR, axeDir, d);
-      d.subVectors(handL, shL).normalize();
-      aimBone(B.LeftArm, man.root, restL, Z, d, ref.crossVectors(d, Y).addScaledVector(Z, 0.3));
+      B.Head.rotation.set(0.18 * (1 - k), 0, 0);
+      man.arm('R', d.subVectors(hand, man.shoulder.R));
+      man.holdDir('R', axeDir, d);
+      man.arm('L', d.subVectors(handL, man.shoulder.L));
     } });
   } else {
     const chopper = makePerson({ tunic: 0x9c4a32, pants: 0x4d4436, hair: 0x6b4423, beard: 0x6b4423, seed: 5, name: 'B14_mand_med_oekse' });
     chopper.armR.hand.add(tool('axe'));
     add(place(chopper.root, chopX, chopZ, chopYaw));
     act({ update(t) {
-      standPose(chopper, t, 1);
-      chopper.head.rotation.y = 0;
+      standPose(chopper, t, 1); chopper.head.rotation.y = 0;
       const a = -0.3 - 2.5 * chopLift(t);
       chopper.armR.rotation.x = a; chopper.armL.rotation.x = a + 0.1;
       chopper.armR.rotation.z = 0.15; chopper.armL.rotation.z = -0.15;
@@ -561,64 +619,107 @@ export function buildJelling(scene, timeline, models = {}) {
 
   // Two children playing tag.
   for (let k = 0; k < 2; k++) {
-    const kid = makePerson({ tunic: k ? 0x6e8f3e : 0xb5652f, pants: 0x5b4a3a, hair: k ? 0xd9a441 : 0x5a3a20, scale: 0.68, seed: 10 + k, longHair: k === 1, name: k ? 'B16_pige' : 'B15_dreng' });
-    add(kid.root);
-    act({ update(t) {
-      const w = 0.62, rad = 3.2 + 0.6 * Math.sin(t * 0.4 + k);
-      const a = t * w + k * 1.0;
-      const x = -86 + Math.cos(a) * rad, z = 29 + Math.sin(a) * rad * 0.8;
-      place(kid.root, x, z, Math.atan2(-Math.sin(a), Math.cos(a) * 0.8));
-      walkPose(kid, t * 9 + k, 0.7);
-    } });
+    const key = k ? 'b16_pige' : 'b15_dreng';
+    const path = (t) => {
+      const rad = 3.2 + 0.6 * Math.sin(t * 0.4 + k), a = t * 0.62 + k * 1.0;
+      return { x: -86 + Math.cos(a) * rad, z: 29 + Math.sin(a) * rad * 0.8, yaw: Math.atan2(-Math.sin(a), Math.cos(a) * 0.8) };
+    };
+    if (M[key]) {
+      const kid = figure(key, -86, 29, 0);
+      act({ update(t) {
+        const p = path(t); place(kid.root, p.x, p.z, p.yaw);
+        kid.walk(t * 9 + k, 0.6);
+        kid.B.Spine.rotation.x = 0.12;
+        kid.B.Head.rotation.set(-0.08, 0.3 * Math.sin(t * 0.7 + k), 0);
+      } });
+    } else {
+      const kid = makePerson({ tunic: k ? 0x6e8f3e : 0xb5652f, pants: 0x5b4a3a, hair: k ? 0xd9a441 : 0x5a3a20, scale: 0.68, seed: 10 + k, longHair: k === 1, name: k ? 'B16_pige' : 'B15_dreng' });
+      add(kid.root);
+      act({ update(t) { const p = path(t); place(kid.root, p.x, p.z, p.yaw); walkPose(kid, t * 9 + k, 0.7); } });
+    }
   }
 
-  // Sheep in the pen.
-  for (let i = 0; i < 5; i++) {
-    const sh = makeSheep(400 + i);
-    sh.root.name = 'B12_faar_' + (i + 1);
-    const x = -122 + (r() - 0.5) * 8, z = 2 + (r() - 0.5) * 8, yaw = r() * 6.28;
-    add(place(sh.root, x, z, yaw));
+  // Sheep in the pen (static models, one draw call).
+  const sheepSpots = [];
+  for (let i = 0; i < 5; i++) { const x = -122 + (r() - 0.5) * 8, z = 2 + (r() - 0.5) * 8; sheepSpots.push({ x, z, y: gy(x, z), yaw: r() * 6.28 }); }
+  if (M.b12_faar) add(instanced(M.b12_faar, sheepSpots));
+  else sheepSpots.forEach((p, i) => {
+    const sh = makeSheep(400 + i); sh.root.name = 'B12_faar_' + (i + 1);
+    add(place(sh.root, p.x, p.z, p.yaw));
     act({ update(t) { sh.head.rotation.x = 0.6 + 0.4 * Math.sin(t * 0.5 + i * 2); } });
-  }
+  });
   emit({ name: 'baa', period: 9.7, offset: 3, x: -122, z: 2 });
 
   // --- Palisade, mounds, ship setting, church, stones --------------------
   zone = 'always';
-  add(palisade());
-  add(mounds());
-  add(shipSetting(timeline.routePoints(), shadows));
+  if (M.c1_palisade && M.c2_port) {
+    const list = [];
+    for (let z = -108; z <= 108; z += 4) if (z + 2 <= SITES.gate[0] || z - 2 >= SITES.gate[1]) list.push({ x: SITES.palisadeX, z, y: gy(SITES.palisadeX, z) - 0.05, yaw: Math.PI / 2 });
+    add(instanced(M.c1_palisade, list));
+    add(modelAt('c2_port', SITES.palisadeX, (SITES.gate[0] + SITES.gate[1]) / 2, Math.PI / 2));
+  } else add(palisade());
+  add(mounds(!(M.c5_toervstak && M.c6_kaerre)));
+  add(shipSetting(timeline.routePoints(), shadows, M));
   const sh = (x, z, sx, sz, yaw, h) => shadows.push([x, groundHeight(x, z), z, sx, sz, yaw, h]);
   sh(-96, 0, 27, 11, 0, 4); sh(-78, 38, 23, 10, 0.06, 4); sh(-110, 36, 7, 6, 0.3, 2); sh(-64, 4, 7, 6, -0.4, 2);
   sh(SITES.church.x, SITES.church.z - 1, 10, 17, 0, 5); sh(SITES.stone.x, SITES.stone.z, 2.4, 2.4, 0, 2.4);
   for (let z = -110; z <= 110; z += 6) if (z < SITES.gate[0] - 2 || z > SITES.gate[1] + 2) sh(SITES.palisadeX, z, 3.2, 7, 0, 3);
   sh(-29, 35, 6, 3.5, 0, 0.5); sh(-33, 40, 2.6, 3.5, 0.4, 1); sh(-106, 29, 3, 2, 0.2, 0.8);
   add(staticShadows(shadows));
-  add(church());
-  add(runestones());
+  add(M.d3_kirke ? modelAt('d3_kirke', SITES.church.x, SITES.church.z, 0) : church());
+  add(runestones(M));
 
-  // Turf carriers walking a loop onto the south mound.
+  // Turf stack, ox cart and the ox (models), plus turf carriers walking a loop onto the south mound.
   zone = 'mounds';
-  const turfLoop = loopPath([[-28, 36.5], [-21, 40], [-11, 43], [-5, 45], [-10, 47], [-20, 44], [-27, 39]]);
-  const turfGeo = paint(G.box(0.5, 0.15, 0.38), 0x5e8a38, { rand: rng(500) });
-  for (let k = 0; k < 4; k++) {
-    const w = makePerson({ tunic: [0x8a6b3f, 0x6d7a4a, 0x9a7a52, 0x7b5d43][k], pants: 0x4d4436, hair: [0x6b4423, 0x3a2a1a, 0xb07a3a, 0x5a3a20][k], beard: k % 2 ? 0x5a3a20 : undefined, seed: 20 + k, name: 'C8_toervebaerer_' + (k + 1) });
-    const turf = new THREE.Mesh(turfGeo, MAT.world);
-    turf.position.set(0, 1.25, 0.38);
-    w.body.add(turf);
-    add(w.root);
+  const CART = { x: -33, z: 40, yaw: 0.4 };
+  if (M.c5_toervstak && M.c6_kaerre) {
+    add(modelAt('c5_toervstak', -29, 35, 0.1));
+    add(modelAt('c6_kaerre', CART.x, CART.z, CART.yaw));
+  }
+  if (M.c7_okse) {
+    const ox = quadruped(M.c7_okse);
+    ox.root.add(blob(1.8));
+    add(place(ox.root, CART.x + Math.sin(CART.yaw) * 4.1, CART.z + Math.cos(CART.yaw) * 4.1, CART.yaw));
     act({ update(t) {
-      const s = t * 0.85 + k * turfLoop.L / 4;
-      const p = turfLoop.at(s);
-      w.root.position.set(p.x, groundHeight(p.x, p.z) + southMoundHeight(p.x, p.z), p.z);
-      w.root.rotation.y = p.yaw;
-      walkPose(w, s * 4.2, 0.45);
-      const carrying = p.seg < 3;
-      turf.visible = carrying;
-      if (carrying) { w.armL.rotation.x = w.armR.rotation.x = -1.25; w.armL.rotation.z = 0.25; w.armR.rotation.z = -0.25; }
-      else { w.armL.rotation.z = -0.08; w.armR.rotation.z = 0.08; }
-      w.body.rotation.x = carrying && p.seg > 0 ? 0.12 : 0;
+      ox.neck.rotation.x = 0.12 + 0.1 * Math.sin(t * 0.4);
+      ox.head.rotation.y = 0.15 * Math.sin(t * 0.23);
+      ox.jaw.rotation.x = 0.06 * Math.max(0, Math.sin(t * 3));
+      ox.tail.rotation.z = 0.3 * Math.sin(t * 1.1);
     } });
   }
+  const turfLoop = loopPath([[-28, 36.5], [-21, 40], [-11, 43], [-5, 45], [-10, 47], [-20, 44], [-27, 39]]);
+  const turfGeo = paint(G.box(0.5, 0.15, 0.38), 0x5e8a38, { rand: rng(500) });
+  ['c8a_toervebaerer', 'c8b_toervebaerer', 'c8c_toervebaerer', 'c8d_toervebaerer'].forEach((key, k) => {
+    const turf = M.c4_toerv ? item('c4_toerv') : new THREE.Mesh(turfGeo, MAT.world);
+    const pose = (t) => { const s = t * 0.85 + k * turfLoop.L / 4; return { s, p: turfLoop.at(s) }; };
+    if (M[key]) {
+      const w = figure(key, 0, 0, 0);
+      turf.position.set(0, 1.08, 0.36); w.root.add(turf);
+      const hl = V(0.2, 1.1, 0.36), hr = V(-0.2, 1.1, 0.36);
+      act({ update(t) {
+        const { s, p } = pose(t);
+        w.root.position.set(p.x, gy(p.x, p.z) + southMoundHeight(p.x, p.z), p.z);
+        w.root.rotation.y = p.yaw;
+        const carrying = p.seg < 3;
+        turf.visible = carrying;
+        w.walk(s * 4.2, 0.4);
+        if (carrying) { w.reach('L', hl); w.reach('R', hr); }
+        w.B.Spine1.rotation.x = carrying && p.seg > 0 ? 0.1 : 0;
+      } });
+    } else {
+      const w = makePerson({ tunic: [0x8a6b3f, 0x6d7a4a, 0x9a7a52, 0x7b5d43][k], pants: 0x4d4436, hair: [0x6b4423, 0x3a2a1a, 0xb07a3a, 0x5a3a20][k], beard: k % 2 ? 0x5a3a20 : undefined, seed: 20 + k, name: 'C8_toervebaerer_' + (k + 1) });
+      turf.position.set(0, 1.25, 0.38); w.body.add(turf); add(w.root);
+      act({ update(t) {
+        const { s, p } = pose(t);
+        w.root.position.set(p.x, gy(p.x, p.z) + southMoundHeight(p.x, p.z), p.z); w.root.rotation.y = p.yaw;
+        walkPose(w, s * 4.2, 0.45);
+        const carrying = p.seg < 3; turf.visible = carrying;
+        if (carrying) { w.armL.rotation.x = w.armR.rotation.x = -1.25; w.armL.rotation.z = 0.25; w.armR.rotation.z = -0.25; }
+        else { w.armL.rotation.z = -0.08; w.armR.rotation.z = 0.08; }
+        w.body.rotation.x = carrying && p.seg > 0 ? 0.12 : 0;
+      } });
+    }
+  });
 
   zone = 'stone';
   // --- The runestone scene ----------------------------------------------
@@ -626,62 +727,111 @@ export function buildJelling(scene, timeline, models = {}) {
   const n = new THREE.Vector2(-0.7071, 0.7071), tg = new THREE.Vector2(0.7071, 0.7071);
   const at = (dn, dt) => [S.x + n.x * dn + tg.x * dt, S.z + n.y * dn + tg.y * dt];
   const faceYaw = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
+  const afterBark = (t, delay = 0, dur = 1.5) => smooth((t - timeline.dogBark - delay) / dur);
 
   // Stonemason, chiselling every 1.25 s, stops when the dog barks.
-  const mason = makePerson({ tunic: 0x7d6b55, pants: 0x4a3f33, hair: 0x8a5a2a, beard: 0x8a5a2a, cap: 0x5c4d3c, seed: 30, name: 'D5_stenhugger' });
-  mason.armR.hand.add(tool('hammer'));
-  const chisel = tool('chisel'); mason.armL.hand.add(chisel);
-  const [mx, mz] = at(0.75, 0.35);
-  add(place(mason.root, mx, mz, faceYaw(mx, mz, S.x, S.z)));
   const STRIKE = 1.25;
-  act({ update(t) {
-    standPose(mason, t, 3);
-    mason.head.rotation.y = 0;
-    mason.legL.rotation.x = -0.5; mason.legR.rotation.x = 0.3; // kneeling-ish stance
-    mason.body.position.y = -0.18;
-    if (t < timeline.dogBark) {
-      const p = (t % STRIKE) / STRIKE;
-      const lift = p < 0.7 ? smooth(p / 0.7) : 1 - smooth((p - 0.7) / 0.12);
-      mason.armR.rotation.x = -0.9 - 0.9 * lift; mason.armL.rotation.x = -1.05;
-      mason.armR.rotation.z = -0.25; mason.armL.rotation.z = 0.35;
-    } else {
-      mason.armR.rotation.x = -0.5; mason.armL.rotation.x = -0.6;
-      mason.head.rotation.y = -0.9 * smooth((t - timeline.dogBark) / 1.2);
-    }
-  } });
+  const [mx, mz] = at(0.7, 0.75);
+  if (M.d5_stenhugger) {
+    const m = figure('d5_stenhugger', mx, mz, faceYaw(mx, mz, S.x, S.z));
+    if (M.f2_hammer) m.attach('R', item('f2_hammer'));
+    if (M.f3_mejsel) m.attach('L', item('f3_mejsel'));
+    const chiselAt = V(-0.22, 1.22, 0.5), up = V(-0.12, 1.62, 0.22), hit = V(-0.02, 1.3, 0.38), h = V(0, 0, 0), d = V(0, 0, 0);
+    act({ update(t) {
+      m.legs(0, 0);
+      m.B.Spine1.rotation.x = 0.1;
+      let lift = 0.2;
+      if (t < timeline.dogBark) { const p = (t % STRIKE) / STRIKE; lift = p < 0.7 ? smooth(p / 0.7) : 1 - smooth((p - 0.7) / 0.12); }
+      m.reach('L', chiselAt);
+      m.holdDir('L', V(-0.1, -0.15, 1), d.subVectors(chiselAt, m.shoulder.L));
+      m.reach('R', h.lerpVectors(hit, up, lift));
+      m.holdDir('R', V(0.7, 0.3 - 0.5 * lift, 0.6).normalize(), d.subVectors(h, m.shoulder.R));
+      m.B.Head.rotation.set(0.2, -0.9 * afterBark(t, 0, 1.2), 0);
+    } });
+  } else {
+    const mason = makePerson({ tunic: 0x7d6b55, pants: 0x4a3f33, hair: 0x8a5a2a, beard: 0x8a5a2a, cap: 0x5c4d3c, seed: 30, name: 'D5_stenhugger' });
+    mason.armR.hand.add(tool('hammer')); mason.armL.hand.add(tool('chisel'));
+    add(place(mason.root, mx, mz, faceYaw(mx, mz, S.x, S.z)));
+    act({ update(t) {
+      standPose(mason, t, 3); mason.head.rotation.y = 0;
+      mason.legL.rotation.x = -0.5; mason.legR.rotation.x = 0.3; mason.body.position.y = -0.18;
+      if (t < timeline.dogBark) {
+        const p = (t % STRIKE) / STRIKE, lift = p < 0.7 ? smooth(p / 0.7) : 1 - smooth((p - 0.7) / 0.12);
+        mason.armR.rotation.x = -0.9 - 0.9 * lift; mason.armL.rotation.x = -1.05;
+        mason.armR.rotation.z = -0.25; mason.armL.rotation.z = 0.35;
+      } else { mason.armR.rotation.x = -0.5; mason.armL.rotation.x = -0.6; mason.head.rotation.y = -0.9 * afterBark(t, 0, 1.2); }
+    } });
+  }
   emit({ name: 'clink', period: STRIKE, offset: STRIKE * 0.8, x: mx, z: mz, until: timeline.dogBark });
 
-  // King Harald in a blue cloak, gesturing at the stone.
-  const harald = makePerson({ tunic: 0xa3322a, pants: 0x3f3a52, cloak: 0x2f5fa8, hair: 0xb98a4a, beard: 0xb98a4a, circlet: true, sleeve: 0xa3322a, seed: 40, name: 'D4_kong_harald' });
+  // King Harald, gesturing at the stone; turns toward the dog when it barks.
   const [hx, hz] = at(1.9, -2.5);
-  add(place(harald.root, hx, hz, faceYaw(hx, hz, S.x, S.z)));
-  act({ update(t) {
-    standPose(harald, t, 4);
-    const g = (t % 14) / 14;
-    harald.armR.rotation.x = g > 0.2 && g < 0.45 ? -1.3 * smooth((g - 0.2) / 0.05) * (1 - smooth((g - 0.4) / 0.05)) : 0.05;
-    harald.armL.rotation.x = -0.35; harald.armL.rotation.z = -0.35;
-    harald.head.rotation.y = 0.25 * Math.sin(t * 0.3);
-    if (t > timeline.dogBark) harald.head.rotation.y = 1.0 * smooth((t - timeline.dogBark - 0.6) / 1.5);
-  } });
-
-  // Priest (Poppo) with a cross.
-  const priest = makePerson({ robe: 0x3b3b46, tunic: 0x3b3b46, pants: 0x3b3b46, hair: 0x9a9a9a, seed: 50, name: 'D6_praesten_poppo' });
-  priest.armR.hand.add(tool('cross'));
-  const [px, pz] = at(2.8, -3.9);
-  add(place(priest.root, px, pz, faceYaw(px, pz, S.x, S.z)));
-  act({ update(t) { standPose(priest, t, 5); priest.armR.rotation.x = -0.3; priest.armL.rotation.x = -0.9; priest.armL.rotation.z = 0.5; } });
-
-  // Two guards by the church.
-  for (let k = 0; k < 2; k++) {
-    const g = makePerson({ tunic: 0x5a6a3a, pants: 0x3a3226, hair: 0x4a3018, beard: 0x4a3018, shield: k ? 0xc23b2e : 0xd9b44a, seed: 60 + k, name: 'D7_vagt_' + (k + 1) });
-    const sp = tool('spear'); sp.rotation.x = 0.35; g.armR.hand.add(sp);
-    const x = SITES.church.x + (k ? 2.4 : -2.4), z = SITES.church.z + 6.2;
-    add(place(g.root, x, z, 0));
-    act({ update(t) { standPose(g, t, 6 + k); g.armR.rotation.x = -0.35; if (t > timeline.dogBark) g.head.rotation.y = -0.6 * smooth((t - timeline.dogBark - 1) / 1.5); } });
+  if (M.d4_harald) {
+    const h = figure('d4_harald', hx, hz, faceYaw(hx, hz, S.x, S.z));
+    const belt = V(0.16, 1.0, 0.16), point = V(-0.25, 0.25, 1), d = V(0, 0, 0);
+    act({ update(t) {
+      h.stand(t, 4, 0.25);
+      h.reach('L', belt);
+      const g = (t % 14) / 14, k = g > 0.2 && g < 0.45 ? smooth((g - 0.2) / 0.05) * (1 - smooth((g - 0.4) / 0.05)) : 0;
+      if (k > 0) h.arm('R', d.set(-0.2, -1, 0.06).lerp(point, k));
+      h.B.Head.rotation.y = 0.25 * Math.sin(t * 0.3) * (1 - afterBark(t, 0.6)) + 1.0 * afterBark(t, 0.6);
+    } });
+  } else {
+    const harald = makePerson({ tunic: 0xa3322a, pants: 0x3f3a52, cloak: 0x2f5fa8, hair: 0xb98a4a, beard: 0xb98a4a, circlet: true, sleeve: 0xa3322a, seed: 40, name: 'D4_kong_harald' });
+    add(place(harald.root, hx, hz, faceYaw(hx, hz, S.x, S.z)));
+    act({ update(t) {
+      standPose(harald, t, 4);
+      const g = (t % 14) / 14;
+      harald.armR.rotation.x = g > 0.2 && g < 0.45 ? -1.3 * smooth((g - 0.2) / 0.05) * (1 - smooth((g - 0.4) / 0.05)) : 0.05;
+      harald.armL.rotation.x = -0.35; harald.armL.rotation.z = -0.35;
+      harald.head.rotation.y = t > timeline.dogBark ? 1.0 * afterBark(t, 0.6) : 0.25 * Math.sin(t * 0.3);
+    } });
   }
 
+  // Priest Poppo with a cross staff.
+  const [px, pz] = at(2.8, -3.9);
+  if (M.d6_poppo) {
+    const p = figure('d6_poppo', px, pz, faceYaw(px, pz, S.x, S.z));
+    if (M.f6_korsstav) p.attach('R', item('f6_korsstav'));
+    const staff = V(-0.3, 1.0, 0.22), chest = V(0.04, 1.25, 0.2), d = V(0, 0, 0);
+    act({ update(t) {
+      p.stand(t, 5, 0.15);
+      p.reach('R', staff); p.holdDir('R', V(0, 1, 0.05), d.subVectors(staff, p.shoulder.R));
+      p.reach('L', chest);
+      p.B.Head.rotation.y = 0.6 * afterBark(t, 1.2);
+    } });
+  } else {
+    const priest = makePerson({ robe: 0x3b3b46, tunic: 0x3b3b46, pants: 0x3b3b46, hair: 0x9a9a9a, seed: 50, name: 'D6_praesten_poppo' });
+    priest.armR.hand.add(tool('cross'));
+    add(place(priest.root, px, pz, faceYaw(px, pz, S.x, S.z)));
+    act({ update(t) { standPose(priest, t, 5); priest.armR.rotation.x = -0.3; priest.armL.rotation.x = -0.9; priest.armL.rotation.z = 0.5; } });
+  }
+
+  // Two guards by the church door: spear in hand, round shield on the back.
+  ['d7a_vagt', 'd7b_vagt'].forEach((key, k) => {
+    const x = SITES.church.x + (k ? 2.4 : -2.4), z = SITES.church.z + 6.2;
+    if (M[key]) {
+      const g = figure(key, x, z, 0);
+      if (M.f4_spyd) g.attach('R', item('f4_spyd'));
+      if (M.f5_skjold) { const s = item('f5_skjold'); s.rotation.y = -Math.PI / 2; s.position.set(0, -0.05, -0.2); g.B.Spine2.add(s); }
+      const grip = V(-0.3, 1.05, 0.18), d = V(0, 0, 0);
+      act({ update(t) {
+        g.stand(t, 6 + k, 0.2);
+        g.reach('R', grip); g.holdDir('R', V(0, 1, 0.08), d.subVectors(grip, g.shoulder.R));
+        g.B.Head.rotation.y = (k ? 0.6 : -0.6) * afterBark(t, 1) + 0.2 * Math.sin(t * 0.2 + k) * (1 - afterBark(t, 1));
+      } });
+    } else {
+      const g = makePerson({ tunic: 0x5a6a3a, pants: 0x3a3226, hair: 0x4a3018, beard: 0x4a3018, shield: k ? 0xc23b2e : 0xd9b44a, seed: 60 + k, name: 'D7_vagt_' + (k + 1) });
+      const sp = tool('spear'); sp.rotation.x = 0.35; g.armR.hand.add(sp);
+      add(place(g.root, x, z, 0));
+      act({ update(t) { standPose(g, t, 6 + k); g.armR.rotation.x = -0.35; if (t > timeline.dogBark) g.head.rotation.y = -0.6 * afterBark(t, 1); } });
+    }
+  });
+
   // The dog: sniffs around, notices the capsule, runs toward it and barks.
-  const dog = makeDog();
+  let dog;
+  if (M.d8_hund) { dog = quadruped(M.d8_hund); dog.root.add(blob(0.8)); }
+  else dog = makeDog();
   dog.root.name = 'D8_hund';
   add(dog.root);
   const capsule = {};
@@ -690,7 +840,6 @@ export function buildJelling(scene, timeline, models = {}) {
     const home = { x: 4.5 + Math.cos(t * 0.35) * 1.6, z: -8.5 + Math.sin(t * 0.35) * 1.2 };
     timeline.poseAtWorld(t, capsule);
     const run = smooth((t - timeline.dogNotice - 0.8) / 2.0);
-    // Target: below the capsule's position when it noticed us, slightly offset.
     const tx = 1.2, tz = -11.2;
     const x = home.x + (tx - home.x) * run, z = home.z + (tz - home.z) * run;
     let yaw;
