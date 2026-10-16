@@ -1,124 +1,114 @@
-// The time capsule cabin: always visible, fixed structure around the user, plus screens and the mist shell.
+// The time capsule: a clean octagonal glass room (Villeneuve style). Seen only from inside.
+// No furniture: people can walk around. Screen panels along the windows, a halo light, and the mist shell.
 import * as THREE from 'three';
 import { Builder, G, MAT, canvasTexture, wrapText } from './toon.js';
-import { CAPSULE, SEAT_COUNT, seatPosition, WORLD } from './config.js';
+import { CAPSULE, seatPosition, WORLD } from './config.js';
 
 MAT.cabin.side = THREE.DoubleSide;
 
-const BRASS = 0xb08d4f, BRONZE = 0x3b332b, IRON = 0x24211e, WALNUT = 0x3a2c22, LEATHER = 0x6a2e24, DOME = 0x77726a;
+// Villeneuve palette: dark graphite, matte concrete, thin cool light lines, a few warm amber accents.
+const GRAPHITE = 0x262b32, CONCRETE = 0x48505a, DARK = 0x171a1e, FLOOR = 0x2b3038, SEAM = 0x3a414b;
+const LIGHT = 0xdff0f2, AMBER = 0xffb36b;
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
-// A box stretched between two points (for ribs and struts).
-function beam(b, from, to, thick, color) {
+// A box stretched between two points (ribs, seams).
+function beam(b, from, to, w, h, color) {
   _a.set(...from); _b.set(...to);
   const len = _a.distanceTo(_b);
   _q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), _b.clone().sub(_a).normalize());
   _e.setFromQuaternion(_q);
-  b.add(G.box(thick, len, thick), color, { pos: [(_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2], rot: [_e.x, _e.y, _e.z] });
+  b.add(G.box(w, len, h), color, { pos: [(_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2], rot: [_e.x, _e.y, _e.z] });
 }
 
-// Octagon helpers: corner k sits at angle PI/8 + k*PI/4 from +z, so one flat side faces forward (-z).
+// Octagon helpers: corner k at angle PI/8 + k*PI/4 from +z, so a flat side faces forward (-z).
 const corner = (k, r) => { const a = Math.PI / 8 + k * Math.PI / 4; return [r * Math.sin(a), r * Math.cos(a)]; };
-const sideMid = (k) => (k + 1) * Math.PI / 4; // angle of the side between corner k and k+1
+const sideMid = (k) => (k + 1) * Math.PI / 4;   // angle of the side between corner k and k+1
+const APO = Math.cos(Math.PI / 8), SIDE = 2 * Math.sin(Math.PI / 8);
 
 function ring(b, r, y, h, thick, color) {
-  const ap = r * Math.cos(Math.PI / 8), len = 2 * r * Math.sin(Math.PI / 8);
   for (let k = 0; k < 8; k++) {
     const a = sideMid(k);
-    b.add(G.box(len + thick * 0.8, h, thick), color, { pos: [ap * Math.sin(a), y, ap * Math.cos(a)], rot: [0, a, 0] });
+    b.add(G.box(r * SIDE + thick * 0.8, h, thick), color, { pos: [r * APO * Math.sin(a), y, r * APO * Math.cos(a)], rot: [0, a, 0] });
   }
 }
+
+// Sides with a screen panel (index k of sideMid). Side 3 is the front (-z) and stays free for the view.
+export const PANEL_SIDES = { 2: 'guide', 4: 'guide', 1: 'map', 5: 'status', 0: 'archive', 6: 'archive', 7: 'guide' };
 
 function cabinShell() {
   const { RADIUS: R, SILL, WALL_TOP: TOP, DOME_TOP } = CAPSULE;
   const b = new Builder(900);
-  // Floor: dark walnut with brass inlay rings.
-  b.add(G.cyl(R, R, 0.1, 8), WALNUT, { pos: [0, -0.05, 0], rot: [0, Math.PI / 8, 0], vary: 0.04 });
-  for (const r of [1.3, 2.6, R - 0.25]) b.add(G.torus(r, 0.018, 3, 8), BRASS, { pos: [0, 0.004, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
-  // Base wall (bronze) with a brass cap and rivets.
-  ring(b, R, SILL / 2, SILL, 0.12, BRONZE);
-  ring(b, R - 0.04, SILL + 0.02, 0.05, 0.2, BRASS);
+  // Floor: dark concrete slab, radial seams and concentric rings.
+  b.add(G.cyl(R, R, 0.12, 8), FLOOR, { pos: [0, -0.06, 0], rot: [0, Math.PI / 8, 0] });
+  for (let k = 0; k < 8; k++) { const [x, z] = corner(k, R - 0.3); beam(b, [x * 0.33, 0.003, z * 0.33], [x, 0.003, z], 0.025, 0.006, SEAM); }
+  for (const r of [1.15, 2.3]) b.add(G.torus(r, 0.012, 3, 8), SEAM, { pos: [0, 0.004, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  b.add(G.cyl(0.9, 0.9, 0.012, 8), SEAM, { pos: [0, 0.006, 0], rot: [0, Math.PI / 8, 0] });
+  // Low plinth wall with a chamfered top and a recessed shadow gap.
+  ring(b, R, SILL / 2, SILL, 0.16, GRAPHITE);
+  ring(b, R - 0.1, SILL + 0.012, 0.025, 0.24, CONCRETE);
+  ring(b, R - 0.14, 0.03, 0.06, 0.04, DARK);
+  // Mullions: slim dark posts with an inner fin and a light slot.
   for (let k = 0; k < 8; k++) {
-    const [x0, z0] = corner(k, R - 0.07), [x1, z1] = corner(k + 1, R - 0.07);
-    for (let i = 1; i < 10; i++) { const f = i / 10; b.add(G.ball(0.018, 0), BRASS, { pos: [x0 + (x1 - x0) * f, SILL * 0.55, z0 + (z1 - z0) * f] }); }
+    const [x, z] = corner(k, R), [xi, zi] = corner(k, R - 0.1);
+    b.add(G.box(0.07, TOP, 0.07), DARK, { pos: [x, TOP / 2, z], rot: [0, Math.PI / 8 + k * Math.PI / 4, 0] });
+    b.add(G.box(0.025, TOP - SILL - 0.1, 0.16), GRAPHITE, { pos: [xi, (TOP + SILL) / 2, zi], rot: [0, Math.PI / 8 + k * Math.PI / 4, 0] });
   }
-  // Corner posts with brass collars.
+  // Heavy top beam, faceted ceiling panels with seams, and the oculus frame.
+  ring(b, R, TOP + 0.08, 0.26, 0.3, GRAPHITE);
+  ring(b, R - 0.18, TOP - 0.07, 0.04, 0.08, DARK);
+  const rTop = 1.1, domeH = DOME_TOP - TOP - 0.2, y0 = TOP + 0.2;
+  b.add(new THREE.CylinderGeometry(rTop, R - 0.1, domeH, 8, 1, true), CONCRETE, { pos: [0, y0 + domeH / 2, 0], rot: [0, Math.PI / 8, 0] });
   for (let k = 0; k < 8; k++) {
-    const [x, z] = corner(k, R);
-    b.add(G.cyl(0.07, 0.09, TOP, 6), IRON, { pos: [x, TOP / 2, z] });
-    for (const y of [SILL + 0.04, TOP - 0.1, 1.45]) b.add(G.cyl(0.1, 0.1, 0.06, 8), BRASS, { pos: [x, y, z] });
+    const [x0, z0] = corner(k, R - 0.12), [x1, z1] = corner(k, rTop);
+    beam(b, [x0, y0, z0], [x1, DOME_TOP, z1], 0.09, 0.09, DARK);
   }
-  // Top ring beam, dome panels, ribs and oculus.
-  ring(b, R, TOP, 0.16, 0.16, BRASS);
-  const rTop = 1.05, domeH = DOME_TOP - TOP;
-  b.add(new THREE.CylinderGeometry(rTop, R, domeH, 8, 1, true), DOME, { pos: [0, TOP + domeH / 2, 0], rot: [0, Math.PI / 8, 0], vary: 0.05 });
-  for (let k = 0; k < 8; k++) {
-    const [x0, z0] = corner(k, R - 0.02), [x1, z1] = corner(k, rTop);
-    beam(b, [x0, TOP, z0], [x1, DOME_TOP, z1], 0.07, BRASS);
-  }
-  for (const f of [0.35, 0.7]) { const r = R + (rTop - R) * f; b.add(G.torus(r * Math.cos(Math.PI / 8) / Math.cos(Math.PI / 8), 0.03, 3, 8), BRASS, { pos: [0, TOP + domeH * f - 0.03, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] }); }
-  b.add(G.torus(rTop, 0.06, 4, 8), BRASS, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
-  // Front console: low desk following the front three sides.
-  const ap = R * Math.cos(Math.PI / 8);
-  for (const k of [2, 3, 4]) {
-    const a = sideMid(k), len = 2 * (R - 0.55) * Math.sin(Math.PI / 8), d = ap - 0.5;
-    b.add(G.box(len + 0.05, 0.62, 0.42), BRONZE, { pos: [d * Math.sin(a), 0.31, d * Math.cos(a)], rot: [0, a, 0] });
-    b.add(G.box(len + 0.1, 0.05, 0.5), 0x2b2622, { pos: [d * Math.sin(a), 0.64, d * Math.cos(a)], rot: [0, a, 0] });
-  }
-  for (let i = 0; i < 5; i++) b.add(G.cyl(0.11, 0.11, 0.04, 12), BRASS, { pos: [-1.0 + i * 0.5, 0.68, -ap + 0.48] });
-  // Leather seats and tablet stands.
-  const SH = CAPSULE.SEAT_HEIGHT;
-  for (let n = 1; n <= SEAT_COUNT; n++) {
-    const p = seatPosition(n);
-    b.add(G.box(0.54, 0.13, 0.5), LEATHER, { pos: [p.x, SH - 0.06, p.z], vary: 0.05 });
-    b.add(G.box(0.54, 0.5, 0.12), LEATHER, { pos: [p.x, SH + 0.28, p.z + 0.27], rot: [0.12, 0, 0], vary: 0.05 });
-    for (const s of [-1, 1]) {
-      b.add(G.box(0.07, 0.24, 0.46), BRONZE, { pos: [p.x + s * 0.3, SH + 0.08, p.z + 0.02] });
-      b.add(G.box(0.09, 0.03, 0.48), BRASS, { pos: [p.x + s * 0.3, SH + 0.21, p.z + 0.02] });
-    }
-    b.add(G.cyl(0.05, 0.05, SH - 0.12, 8), BRASS, { pos: [p.x, (SH - 0.12) / 2, p.z] });
-    b.add(G.cyl(0.2, 0.22, 0.03, 8), BRONZE, { pos: [p.x, 0.015, p.z] });
-    b.add(G.cyl(0.016, 0.016, 0.88, 6), BRASS, { pos: [p.x, 0.44, p.z - 0.6] });
-    b.add(G.box(0.53, 0.35, 0.03), IRON, { pos: [p.x, 0.97, p.z - 0.6], rot: [-0.55, 0, 0] });
+  for (const f of [0.33, 0.66]) b.add(G.torus((R - 0.1 + (rTop - R + 0.1) * f) / Math.cos(Math.PI / 8) * Math.cos(Math.PI / 8), 0.02, 3, 8), DARK, { pos: [0, y0 + domeH * f - 0.02, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  b.add(G.torus(rTop, 0.08, 4, 8), DARK, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  // Screen consoles along the windows: slim pedestal, angled screen housing.
+  for (const k of Object.keys(PANEL_SIDES).map(Number)) {
+    const a = sideMid(k), d = R * APO - 0.42, sx = Math.sin(a), sz = Math.cos(a);
+    b.add(G.box(0.86, 0.8, 0.12), GRAPHITE, { pos: [d * sx + 0.1 * sx, 0.4, d * sz + 0.1 * sz], rot: [0, a, 0] });
+    b.add(G.box(1.0, 0.58, 0.05), DARK, { pos: [d * sx, 1.0, d * sz], rot: [-0.6, a + Math.PI, 0, 'YXZ'] });
   }
   const shell = b.mesh(MAT.cabin);
 
-  // Lights: warm lamps on the posts, gauge faces, a thin floor light line.
+  // Light lines: under the top beam, in the floor gap, mullion slots, oculus ring.
   const g = new Builder(901);
-  for (let k = 0; k < 8; k++) { const [x, z] = corner(k, R - 0.14); g.add(G.ball(0.045, 1), 0xffc77a, { pos: [x, TOP - 0.28, z] }); }
-  for (let i = 0; i < 5; i++) g.add(G.cyl(0.085, 0.085, 0.01, 12), [0xf3e6c4, 0x9fe3d6, 0xf3e6c4, 0xffc77a, 0xf3e6c4][i], { pos: [-1.0 + i * 0.5, 0.705, -ap + 0.48] });
-  g.add(G.box(0.025, 0.006, 4.6), 0xcfe9e4, { pos: [0, 0.004, 0] });
-  ring(g, R - 0.1, TOP - 0.1, 0.012, 0.012, 0xdff6f2);
-  ring(g, R - 0.2, 0.006, 0.006, 0.02, 0x8fd3c8);
+  ring(g, R - 0.2, TOP - 0.1, 0.012, 0.012, LIGHT);
+  ring(g, R - 0.17, 0.006, 0.006, 0.03, 0x7fb8b4);
+  for (let k = 0; k < 8; k++) {
+    const [x, z] = corner(k, R - 0.19);
+    g.add(G.box(0.012, TOP - SILL - 0.3, 0.012), LIGHT, { pos: [x, (TOP + SILL) / 2, z] });
+  }
+  g.add(G.torus(rTop - 0.1, 0.015, 3, 8), LIGHT, { pos: [0, DOME_TOP - 0.05, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  for (const k of Object.keys(PANEL_SIDES).map(Number)) {
+    const a = sideMid(k), d = R * APO - 0.36;
+    g.add(G.box(0.7, 0.012, 0.012), AMBER, { pos: [d * Math.sin(a), 0.62, d * Math.cos(a)], rot: [0, a, 0] });
+  }
   const glow = g.mesh(MAT.glow);
 
-  // Glass: very faint tint so the walls read as glass without hiding anything.
+  // Glass: very faint tint, floor to beam.
   const gl = new Builder(903);
   for (let k = 0; k < 8; k++) {
-    const a = sideMid(k), len = 2 * R * Math.sin(Math.PI / 8), d = ap - 0.02;
-    gl.add(new THREE.PlaneGeometry(len, TOP - SILL), 0xbfe6ef, { pos: [d * Math.sin(a), (TOP + SILL) / 2, d * Math.cos(a)], rot: [0, a, 0] });
+    const a = sideMid(k), d = R * APO - 0.03;
+    gl.add(new THREE.PlaneGeometry(R * SIDE, TOP - SILL), 0xbfe0ea, { pos: [d * Math.sin(a), (TOP + SILL) / 2, d * Math.cos(a)], rot: [0, a, 0] });
   }
-  gl.add(new THREE.CircleGeometry(rTop, 8), 0xbfe6ef, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
-  const glass = new THREE.Mesh(gl.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.07, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+  gl.add(new THREE.CircleGeometry(rTop, 8), 0xbfe0ea, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  const glass = new THREE.Mesh(gl.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.06, depthWrite: false, fog: false, side: THREE.DoubleSide }));
   glass.renderOrder = 5;
   return { shell, glow, glass };
 }
 
-// Armillary sphere above the console: the "engine" of the time machine.
-function armillary() {
+// The time core: a thin halo of light under the oculus and its mirror ring in the floor.
+function halo() {
   const group = new THREE.Group();
-  group.position.set(0, 2.95, -0.2);
-  const b = new Builder(904);
-  b.add(G.cyl(0.012, 0.012, 0.6, 6), BRASS, { pos: [0, 0.62, 0.1], rot: [0.3, 0, 0] });
-  b.add(G.torus(0.42, 0.016, 4, 32), BRASS, { rot: [Math.PI / 2, 0, 0] });
-  group.add(b.mesh(MAT.cabin));
-  const rings = [0.36, 0.3, 0.24].map((r, i) => {
-    const m = new THREE.Mesh(new Builder(905 + i).add(G.torus(r, 0.012 + i * 0.002, 4, 32), i === 1 ? 0xd9b46a : BRASS).geometry(), MAT.cabin);
-    group.add(m); return m;
-  });
-  const orb = new THREE.Mesh(new Builder(908).add(G.ball(0.07, 2), 0x9feaff).geometry(), MAT.glow);
-  group.add(orb);
-  return { group, rings, orb };
+  const mat = new THREE.MeshBasicMaterial({ color: LIGHT, fog: false, toneMapped: false });
+  const top = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.018, 4, 64), mat);
+  top.rotation.x = Math.PI / 2; top.position.y = CAPSULE.DOME_TOP - 0.55;
+  const floor = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.012, 3, 64), mat);
+  floor.rotation.x = Math.PI / 2; floor.position.y = 0.012;
+  group.add(top, floor);
+  return { group, mat, top };
 }
 
 // Mist shell around the capsule: hides the outside during time jumps / comfort mode.
@@ -157,125 +147,157 @@ function mistShell() {
   return m;
 }
 
-// Overhead sign: year, place, stealth status.
-function sign() {
-  const { canvas, ctx, tex } = canvasTexture(1024, 192);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.32), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
-  mesh.position.set(0, 2.3, -CAPSULE.RADIUS * Math.cos(Math.PI / 8) + 0.14);
-  mesh.rotation.x = 0.12;
-  let last = '';
-  return {
-    mesh,
-    draw(year, place, alarm, t) {
-      const pulse = alarm ? (Math.sin(t * Math.PI * 2 * 0.8) > 0 ? 1 : 0) : 0;
-      const key = `${year}|${place}|${alarm}|${pulse}`;
-      if (key === last) return; last = key;
-      ctx.fillStyle = '#0f1b22'; ctx.fillRect(0, 0, 1024, 192);
-      ctx.strokeStyle = '#c9a24a'; ctx.lineWidth = 6; ctx.strokeRect(6, 6, 1012, 180);
-      ctx.fillStyle = '#7fe0d4'; ctx.font = 'bold 34px system-ui, sans-serif'; ctx.textBaseline = 'middle';
-      ctx.fillText('ÅR', 40, 62);
-      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 120px ui-monospace, Consolas, monospace';
-      ctx.fillText(String(year).padStart(4, ' '), 100, 104);
-      ctx.fillStyle = '#7fe0d4'; ctx.font = 'bold 34px system-ui, sans-serif';
-      ctx.fillText('STED', 470, 62);
-      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 52px system-ui, sans-serif';
-      ctx.fillText(place, 470, 116);
-      const col = alarm ? (pulse ? '#ffb020' : '#a35a00') : '#3ee08f';
-      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(835, 96, 22, 0, 7); ctx.fill();
-      ctx.font = 'bold 30px system-ui, sans-serif';
-      ctx.fillText(alarm ? 'OBSERVERET!' : 'STEALTH', 868, 80);
-      ctx.fillStyle = '#9fb3ba'; ctx.font = '24px system-ui, sans-serif';
-      ctx.fillText(alarm ? 'af 1 hund' : 'aktiv', 868, 118);
-      tex.needsUpdate = true;
-    },
-  };
+// Screen panels along the windows. Content types: guide (captions + place buttons), map, status, archive.
+const SW = 1024, SH = 568, BTN_Y = 440, BTN_H = 96;
+const FONT = 'system-ui, "Segoe UI", sans-serif';
+
+function letterSpaced(ctx, text, x, y, spacing) {
+  for (const ch of text) { ctx.fillText(ch, x, y); x += ctx.measureText(ch).width + spacing; }
+  return x;
 }
 
-// Tablet: captions plus buttons for choosing where to go. Same texture on every seat for now.
-const TW = 1024, TH = 660, BTN_Y = 528, BTN_H = 108;
-function tablets() {
-  const { ctx, tex } = canvasTexture(TW, TH);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false });
-  const geo = new THREE.PlaneGeometry(0.48, 0.31);
+function screenBase(ctx, label) {
+  ctx.fillStyle = '#0d1013'; ctx.fillRect(0, 0, SW, SH);
+  ctx.strokeStyle = 'rgba(223,240,242,0.18)'; ctx.lineWidth = 2; ctx.strokeRect(14, 14, SW - 28, SH - 28);
+  ctx.fillStyle = '#ffb36b'; ctx.font = `600 22px ${FONT}`; ctx.textBaseline = 'middle';
+  letterSpaced(ctx, label, 40, 46, 5);
+  ctx.textBaseline = 'alphabetic';
+}
+
+function panels(mapDrawer) {
+  const geo = new THREE.PlaneGeometry(0.9, 0.5);
+  const make = () => {
+    const { ctx, tex } = canvasTexture(SW, SH);
+    return { ctx, tex, mat: new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }), last: '' };
+  };
+  const screens = { guide: make(), map: make(), status: make(), archive: make() };
   const group = new THREE.Group();
   const meshes = [];
-  for (let n = 1; n <= SEAT_COUNT; n++) {
-    const p = seatPosition(n);
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(p.x, 0.975, p.z - 0.585);
-    m.rotation.x = -0.55;
+  const R = CAPSULE.RADIUS;
+  for (const [k, type] of Object.entries(PANEL_SIDES)) {
+    const a = sideMid(Number(k)), d = R * APO - 0.43;
+    const m = new THREE.Mesh(geo, screens[type].mat);
+    m.position.set(d * Math.sin(a), 1.0, d * Math.cos(a));
+    m.rotation.set(-0.6, a + Math.PI, 0, 'YXZ');
+    m.translateZ(0.03);
+    m.userData.type = type;
     group.add(m); meshes.push(m);
   }
-  let last = '', rects = [];
+  let rects = [];
+
+  function drawGuide(caption, buttons, debugLine) {
+    const s = screens.guide, ctx = s.ctx;
+    const key = caption.key + '|' + buttons.map((b) => b.id + b.state).join() + '|' + debugLine;
+    if (key === s.last) return; s.last = key;
+    screenBase(ctx, 'TIDSMASKINEN · GUIDE');
+    if (debugLine) { ctx.fillStyle = '#7fb8b4'; ctx.font = `20px ui-monospace, Consolas, monospace`; ctx.textAlign = 'right'; ctx.fillText(debugLine, SW - 40, 54); ctx.textAlign = 'left'; }
+    const alarm = caption.title.startsWith('!');
+    ctx.fillStyle = alarm ? '#ffb36b' : '#f2f6f7'; ctx.font = `300 54px ${FONT}`;
+    ctx.fillText(caption.title.replace(/!/g, '').trim().toUpperCase(), 40, 130);
+    ctx.fillStyle = '#b9c4c7'; ctx.font = `34px ${FONT}`;
+    wrapText(ctx, caption.body, 40, 186, SW - 80, 44);
+    const n = buttons.length, gap = 14, w = (SW - 80 - gap * (n - 1)) / n;
+    rects = buttons.map((b, i) => ({ ...b, x: 40 + i * (w + gap), y: BTN_Y, w, h: BTN_H }));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const b of rects) {
+      ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 6);
+      if (b.state === 'here') { ctx.fillStyle = '#ffb36b'; ctx.fill(); }
+      else { ctx.strokeStyle = b.state === 'off' ? 'rgba(223,240,242,0.15)' : b.state === 'seen' ? 'rgba(223,240,242,0.45)' : '#dff0f2'; ctx.lineWidth = 3; ctx.stroke(); }
+      ctx.fillStyle = b.state === 'here' ? '#0d1013' : b.state === 'off' ? 'rgba(223,240,242,0.25)' : '#f2f6f7';
+      ctx.font = `600 ${n > 2 ? 26 : 34}px ${FONT}`;
+      ctx.fillText((b.state === 'seen' ? '✓ ' : '') + b.label.toUpperCase(), b.x + b.w / 2, b.y + b.h / 2);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    s.tex.needsUpdate = true;
+  }
+
+  function drawStatus({ year, place, alarm, jumping, jumpProgress }, t) {
+    const s = screens.status, ctx = s.ctx;
+    const pulse = alarm ? (Math.sin(t * Math.PI * 1.6) > 0 ? 1 : 0) : 0;
+    const key = `${year}|${place}|${alarm}|${pulse}|${jumping ? Math.round(jumpProgress * 40) : -1}`;
+    if (key === s.last) return; s.last = key;
+    screenBase(ctx, 'STATUS');
+    ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'ÅR', 40, 120, 5);
+    ctx.fillStyle = '#f2f6f7'; ctx.font = `200 170px ${FONT}`; ctx.fillText(String(year), 34, 270);
+    ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'STED', 560, 120, 5);
+    ctx.fillStyle = '#f2f6f7'; ctx.font = `300 52px ${FONT}`; ctx.fillText(place, 556, 180);
+    ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'STEALTH', 560, 250, 5);
+    ctx.fillStyle = alarm ? (pulse ? '#ffb36b' : '#7a4f2a') : '#7fe0b8';
+    ctx.beginPath(); ctx.arc(574, 296, 12, 0, 7); ctx.fill();
+    ctx.font = `400 34px ${FONT}`; ctx.fillText(alarm ? 'OBSERVERET AF 1 HUND' : 'AKTIV', 600, 308);
+    if (jumping) {
+      ctx.strokeStyle = 'rgba(223,240,242,0.3)'; ctx.lineWidth = 2; ctx.strokeRect(40, 420, SW - 80, 14);
+      ctx.fillStyle = '#dff0f2'; ctx.fillRect(40, 420, (SW - 80) * jumpProgress, 14);
+      ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'TIDSSPRING', 40, 480, 5);
+    }
+    s.tex.needsUpdate = true;
+  }
+
+  function drawMap(x, z, yaw) {
+    const s = screens.map, ctx = s.ctx;
+    const key = `${Math.round(x * 2)}|${Math.round(z * 2)}`;
+    if (key === s.last) return; s.last = key;
+    screenBase(ctx, 'KORT · JELLING');
+    mapDrawer(ctx, { x: 40, y: 70, w: SW - 80, h: SH - 110 }, x, z, yaw);
+    s.tex.needsUpdate = true;
+  }
+
+  function drawArchive() {
+    const s = screens.archive, ctx = s.ctx;
+    if (s.last) return; s.last = 'done';
+    screenBase(ctx, 'ARKIV · BILLEDER FRA TIDEN');
+    ['Jellingstenen i dag', 'Fund fra vikingetiden', 'Højene fra luften'].forEach((label, i) => {
+      const x = 40 + i * 320, y = 90;
+      ctx.strokeStyle = 'rgba(223,240,242,0.25)'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 290, 300);
+      ctx.strokeStyle = 'rgba(223,240,242,0.1)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 290, y + 300); ctx.moveTo(x + 290, y); ctx.lineTo(x, y + 300); ctx.stroke();
+      ctx.fillStyle = '#b9c4c7'; ctx.font = `28px ${FONT}`; ctx.fillText(label, x, y + 345);
+    });
+    ctx.fillStyle = '#7d8a8e'; ctx.font = `italic 26px ${FONT}`; ctx.fillText('Kommer senere', 40, 520);
+    s.tex.needsUpdate = true;
+  }
+
   return {
-    group,
-    meshFor(seat) { return meshes[seat - 1]; },
-    // uv on the tablet -> button id (only active buttons).
-    buttonAt(uv) {
-      const x = uv.x * TW, y = (1 - uv.y) * TH;
+    group, meshes,
+    // uv on a guide screen -> button id (only active buttons).
+    buttonAt(mesh, uv) {
+      if (mesh.userData.type !== 'guide') return null;
+      const x = uv.x * SW, y = (1 - uv.y) * SH;
       const r = rects.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h && b.state !== 'off' && b.state !== 'here');
       return r ? r.id : null;
     },
-    draw(caption, buttons, debugLine) {
-      const key = caption.key + '|' + buttons.map((b) => b.id + b.state).join() + '|' + debugLine;
-      if (key === last) return; last = key;
-      ctx.fillStyle = '#f4efe3'; ctx.fillRect(0, 0, TW, TH);
-      ctx.fillStyle = '#16323a'; ctx.fillRect(0, 0, TW, 60);
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#c9a24a'; ctx.font = 'bold 26px system-ui, sans-serif';
-      ctx.fillText('TIDSMASKINEN · REJSE 1 · JELLING', 30, 31);
-      if (debugLine) { ctx.fillStyle = '#7fe0d4'; ctx.font = '22px ui-monospace, Consolas, monospace'; ctx.textAlign = 'right'; ctx.fillText(debugLine, TW - 24, 31); ctx.textAlign = 'left'; }
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = caption.title.startsWith('!') ? '#b5470b' : '#16323a';
-      ctx.font = 'bold 56px system-ui, sans-serif';
-      ctx.fillText(caption.title.replace(/!/g, '⚠').trim(), 40, 130);
-      ctx.fillStyle = '#26363b'; ctx.font = '38px system-ui, sans-serif';
-      wrapText(ctx, caption.body, 40, 192, 944, 50);
-      // Buttons.
-      const n = buttons.length, gap = 14, w = (TW - 48 - gap * (n - 1)) / n;
-      rects = buttons.map((b, i) => ({ ...b, x: 24 + i * (w + gap), y: BTN_Y, w, h: BTN_H }));
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      for (const b of rects) {
-        const fill = { on: '#16323a', seen: '#3d5a62', here: '#c9a24a', off: '#d8d1c0' }[b.state];
-        ctx.fillStyle = fill;
-        ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 18); ctx.fill();
-        ctx.fillStyle = b.state === 'here' ? '#1a1a1a' : b.state === 'off' ? '#a39b88' : '#f4efe3';
-        ctx.font = `bold ${n > 2 ? 30 : 40}px system-ui, sans-serif`;
-        ctx.fillText((b.state === 'seen' ? '✓ ' : '') + b.label, b.x + b.w / 2, b.y + b.h / 2);
-      }
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      tex.needsUpdate = true;
+    draw({ caption, buttons, debug, status, map, t }) {
+      drawGuide(caption, buttons, debug);
+      drawStatus(status, t);
+      drawMap(map.x, map.z, map.yaw);
+      drawArchive();
     },
   };
 }
 
-export function buildCapsule() {
+export function buildCapsule({ mapDrawer = () => {} } = {}) {
   const vehicle = new THREE.Group();
   const { shell, glow, glass } = cabinShell();
   vehicle.add(shell, glow, glass);
-  const arm = armillary();
-  vehicle.add(arm.group);
+  const core = halo();
+  vehicle.add(core.group);
   const mist = mistShell();
   vehicle.add(mist);
-  const s = sign();
-  vehicle.add(s.mesh);
-  const tabs = tablets();
-  vehicle.add(tabs.group);
+  const screens = panels(mapDrawer);
+  vehicle.add(screens.group);
   const rig = new THREE.Group();
   vehicle.add(rig);
+  const base = new THREE.Color(LIGHT), hot = new THREE.Color(0xffffff);
   return {
-    vehicle, rig, mist, sign: s, tablets: tabs,
+    vehicle, rig, mist, panels: screens,
     animateCore(t, speedUp) {
-      const k = 1 + speedUp * 6;
-      arm.rings[0].rotation.set(t * 0.21 * k, t * 0.13 * k, 0);
-      arm.rings[1].rotation.set(0, t * 0.17 * k, t * 0.11 * k);
-      arm.rings[2].rotation.set(t * 0.09 * k, 0, t * 0.23 * k);
-      arm.orb.scale.setScalar(1 + speedUp * 0.8 + 0.06 * Math.sin(t * 2));
+      core.top.scale.setScalar(1 + speedUp * 0.08 * Math.sin(t * 3));
+      core.mat.color.copy(base).lerp(hot, speedUp).multiplyScalar(1 + speedUp * 1.5);
     },
   };
 }
 
-export function placeRig(rig, seat) {
+// Start position (1-10) on the floor; in VR the user can walk freely from here.
+export function placeRig(rig, seat, walk = { x: 0, z: 0 }) {
   const p = seatPosition(seat);
-  rig.position.set(p.x, 0, p.z);
+  rig.position.set(p.x + walk.x, 0, p.z + walk.z);
 }

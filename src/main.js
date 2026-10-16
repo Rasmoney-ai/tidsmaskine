@@ -3,7 +3,7 @@ import { CAPSULE, COUNTDOWN, SEAT_COUNT, WORLD } from './config.js';
 import { Timeline } from './timeline.js';
 import { LocalClock } from './clock.js';
 import { buildWorld } from './world.js';
-import { buildJelling, occupied } from './jelling.js';
+import { buildJelling, occupied, drawJellingMap } from './jelling.js';
 import { buildCapsule, placeRig } from './capsule.js';
 import { buildHands } from './hands.js';
 import { Audio } from './audio.js';
@@ -39,7 +39,7 @@ const world = buildWorld(scene, occupied);
 const models = await loadModels();
 const jelling = buildJelling(scene, timeline, models);
 const life = buildLife(jelling.group, timeline);
-const capsule = buildCapsule();
+const capsule = buildCapsule({ mapDrawer: (ctx, r, x, z, yaw) => drawJellingMap(ctx, r, x, z, yaw, timeline.stops) });
 scene.add(capsule.vehicle);
 capsule.rig.add(camera);
 placeRig(capsule.rig, state.seat);
@@ -50,6 +50,7 @@ const perf = new Perf(renderer, world);
 
 // Desktop look-around (drag) and clicks on the tablet.
 const look = { yaw: 0, pitch: -0.12 };
+const walk = { x: 0, z: 0 };   // desktop walking offset from the start place
 let drag = null;
 renderer.domElement.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; });
 addEventListener('pointerup', (e) => {
@@ -70,9 +71,9 @@ addEventListener('resize', () => {
 const raycaster = new THREE.Raycaster();
 function pressRay(origin, dir) {
   raycaster.set(origin, dir);
-  const hit = raycaster.intersectObject(capsule.tablets.meshFor(state.seat), false)[0];
+  const hit = raycaster.intersectObjects(capsule.panels.meshes, false)[0];
   if (!hit) return false;
-  const id = capsule.tablets.buttonAt(hit.uv);
+  const id = capsule.panels.buttonAt(hit.object, hit.uv);
   if (id) { app.press(id); audio.play('beep', 0.5); }
   return !!id;
 }
@@ -93,7 +94,8 @@ function xrSelect(e) {
 const app = {
   timeline, clock, audio, state, look, renderer, perf, scene,
   restart(play = true) { timeline.reset(); clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
-  setSeat(n) { state.seat = n; placeRig(capsule.rig, n); },
+  setSeat(n) { state.seat = n; walk.x = walk.z = 0; placeRig(capsule.rig, n); },
+  keys: new Set(),
   setComfort(on) { state.comfort = on; },
   // Panel buttons: a stop id, 'home' or 'again'.
   press(id) {
@@ -166,7 +168,22 @@ const st = {};
 const fogBase = new THREE.Color(WORLD.FOG_COLOR), fogLab = new THREE.Color(WORLD.MIST_LAB), fogCalm = new THREE.Color(WORLD.MIST_STEALTH);
 const fogTunnel = new THREE.Color(0x3a3a8a), fogTarget = new THREE.Color();
 
+// Desktop walking with W A S D inside the capsule (in VR people walk for real).
+let lastNow = 0, dt = 0;
+function walkStep(step) {
+  const k = app.keys, f = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0), r = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+  if (f || r) {
+    const sp = 1.4 * step, s = Math.sin(look.yaw), c = Math.cos(look.yaw);
+    walk.x += (-s * f + c * r) * sp; walk.z += (-c * f - s * r) * sp;
+  }
+  const seat = capsule.rig.position;
+  placeRig(capsule.rig, state.seat, walk);
+  const d = Math.hypot(seat.x, seat.z);
+  if (d > CAPSULE.WALK_RADIUS) { const m = CAPSULE.WALK_RADIUS / d; walk.x -= seat.x * (1 - m); walk.z -= seat.z * (1 - m); placeRig(capsule.rig, state.seat, walk); }
+}
+
 renderer.setAnimationLoop((now) => {
+  dt = Math.min((now - lastNow) / 1000, 0.1); lastNow = now;
   let tau = clock.t;
   if (clock.playing && tau >= timeline.clip.dur) {
     if (timeline.finished) { clock.pause(); clock.seek(timeline.clip.dur); tau = timeline.clip.dur; }
@@ -189,8 +206,11 @@ renderer.setAnimationLoop((now) => {
   scene.fog.density = WORLD.FOG_DENSITY + (0.3 - WORLD.FOG_DENSITY) * st.mist * st.mist;
 
   const place = st.jumping ? 'TIDSREJSE' : st.year === 2026 ? 'LABORATORIET' : 'JELLING';
-  capsule.sign.draw(st.year, place, st.alarm, st.w);
-  capsule.tablets.draw(st.caption, buttons(), state.debug ? perf.summary() : '');
+  capsule.panels.draw({
+    caption: st.caption, buttons: buttons(), debug: state.debug ? perf.summary() : '', t: st.w,
+    status: { year: st.year, place, alarm: st.alarm, jumping: st.jumping, jumpProgress: st.jumpProgress },
+    map: { x: st.x, z: st.z, yaw: st.yaw },
+  });
   capsule.animateCore(st.w + tau, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
 
   if (app.inspect) {
@@ -200,6 +220,7 @@ renderer.setAnimationLoop((now) => {
     camera.position.set(x, y, z); camera.lookAt(tx, ty, tz);
   } else if (!renderer.xr.isPresenting) {
     if (camera.parent !== capsule.rig) capsule.rig.add(camera);
+    walkStep(dt);
     camera.position.set(0, CAPSULE.DESKTOP_EYE, 0);
     camera.rotation.set(look.pitch, look.yaw, 0, 'YXZ');
   }

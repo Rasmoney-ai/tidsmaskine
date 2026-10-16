@@ -49,8 +49,11 @@ export function initUI(app, renderer) {
   };
   $('back').onclick = () => { app.clock.pause(); start.hidden = false; hud.hidden = true; };
 
+  addEventListener('keyup', (e) => app.keys.delete(e.code));
+  addEventListener('blur', () => app.keys.clear());
   addEventListener('keydown', (e) => {
     if (start.hidden === false) return;
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) { app.keys.add(e.code); e.preventDefault(); return; }
     switch (e.code) {
       case 'Space': app.clock.toggle(); break;
       case 'ArrowRight': app.seekBy(10); break;
@@ -75,7 +78,7 @@ export function initUI(app, renderer) {
     if (hud.hidden) return;
     const tl = app.timeline, c = tl.clip;
     const name = c.name || { intro: 'Afgang', jumpPast: 'Tidsspring', hop: 'Tidshop', jumpHome: 'Tidsspring hjem', home: 'Hjemme' }[tl.clipId];
-    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)}/${c.dur} s · sæde ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`
+    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)}/${c.dur} s · plads ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`
       + (app.state.debug ? ` · ${app.perf.summary()}` : '');
   };
 }

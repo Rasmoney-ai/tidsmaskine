@@ -36,19 +36,9 @@ Oplevelsen kører i Meta Quest 3 (browser), så hver model skal være let.
 
 ---
 
-## A. Tidskapslen (inde i den, altid tæt på)
+## A. Tidskapslen
 
-"Jules Verne møder Denis Villeneuve": messing, nitter, mørkt træ, læder, mørk kuppel, rolige linjer. Kapslen er en ottekant med 3,7 m fra midten til hjørnerne og glas hele vejen rundt fra 0,45 m til 2,45 m. Kuplen går op til 3,55 m og har et rundt ovenlys (radius 1 m).
-
-| # | Model | Beskrivelse | Trekanter |
-|---|---|---|---|
-| A1 | Kapselskal | Ottekantet gulv af mørkt valnøddetræ med indlagte messingringe. Lav sokkel af bronze med nitter, 8 hjørnesøjler af sort jern med messingmanchetter, messingring foroven og mørk kuppel med 8 messingribber op til ovenlyset. Glasset laves IKKE i modellen (det tegnes for sig). | 8.000 |
-| A2 | Sæde | Lænestol i dyb okseblodsrød læder med messingkant på armlænene. Søjlefod i messing og rund bronzefod. Siddehøjde 0,46 m, ryglæn til ca. 0,95 m. Bruges 10 gange. | 600 |
-| A3 | Tabletstander | Tynd messingstang (0,9 m) med en skrå ramme i sort jern til en skærm på 48 × 31 cm. Selve skærmfladen skal være et separat, fladt rektangel (det får tekst fra koden). | 300 |
-| A4 | Instrumentbord | Lavt, buet bord (0,65 m højt) langs de tre forreste sider. Fem runde messingmålere med lyse urskiver og små knapper og håndtag. | 3.000 |
-| A5 | Armillarsfære | Kapslens "motor", hænger under ovenlyset. Ydre fast ring (radius 0,42 m) på en ophængsstang og tre indre ringe, der hver skal være et **separat objekt** (de roterer i koden). I midten en lille glødende kugle (separat objekt). | 2.000 |
-| A6 | Skilt med årstal | Messingindfattet rektangulær ramme (1,7 × 0,32 m) til et display. Displayfladen skal være et separat rektangel. | 300 |
-| A7 | Lampe | Lille glødepære i messingfatning til hjørnesøjlerne (bruges 8 gange). | 150 |
+Bestilles ikke. Kapslen bygges i koden, så den passer til skærme, knapper og lys.
 
 ## B. Landsbyen
 
@@ -120,6 +110,5 @@ Selve højene og terrænet laves i koden og bestilles ikke.
 
 **Prioritet**, hvis I vil tage det i bidder:
 1. D4 Harald, D8 hund, D1 runestenen og D5 stenhuggeren (det stop, man er tættest på)
-2. Kapslen (A1-A7), som man ser hele tiden
-3. Landsbyen (B)
-4. Gravhøjene (C) og naturen (E)
+2. Landsbyen (B)
+3. Gravhøjene (C) og naturen (E)

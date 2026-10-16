@@ -22,7 +22,7 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 
 - `timeline.js`: Rejsen er en række klip: intro, tidsspring, tre steder (stop), korte tidshop og tidsspring hjem. Tilstanden er (klip, tid i klippet). Samme tilstand giver samme billede. Ved hvert sted glider kapslen kort og står så stille. Man vælger sted på tabletten, og ellers kører stederne i rækkefølge.
 - `clock.js`: Udskifteligt ur (lokalt nu, senere lydspor eller fælles server-ur).
-- `capsule.js`: Ottekantet glaskapsel ("Jules Verne møder Villeneuve": messing, læder, mørk kuppel med ovenlys og armillarsfære) med 10 sæder (5 rækker à 2), skilt med årstal, tablets og tågeskal til tidsspring/komfort.
+- `capsule.js`: Ottekantet glaskapsel i ren Villeneuve-stil (mørk grafit, mat beton, tynde lyslinjer, få ravfarvede accenter). Bygges i koden og ses kun indefra. Ingen møbler: man kan gå rundt. Skærmpaneler langs vinduerne (guide med stedknapper, kort, status, arkiv), lysring under ovenlyset og tågeskal til tidsspring/komfort. 10 startpladser (`seatPosition`). På skærmen går man med W A S D.
 - `world.js`: Terræn (ingen græsstrå, kun farvede flader), himmel, træer. `jelling.js`: Rejse 1, opdelt i zoner (village, mounds, stone, always). Hvert sted viser og animerer kun sine zoner. `people.js`: figurbygger (pladsholdere indtil modellerne fra `MODELLER.md` kommer).
 - `shadows.js`: Falske bløde skygger. `life.js`: Fugle og sommerfugle.
 - `perf.js`: Måler (`?debug=1`) og sikkerhedsnet, der skruer ned for detaljer, hvis billedfrekvensen falder i VR.

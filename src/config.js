@@ -13,17 +13,17 @@ export const CAPSULE = {
   ROW_PITCH: 1.0,          // distance between rows (m)
   FRONT_ROW_Z: -2.0,       // z of row 1 (forward is -z)
   SEAT_X: 0.8,             // half distance between the two seats in a row
-  SEAT_HEIGHT: 0.46,       // chair seat height (m)
-  DESKTOP_EYE: 1.2,        // eye height in desktop mode (m)
+  DESKTOP_EYE: 1.6,        // standing eye height in desktop mode (m)
+  WALK_RADIUS: 2.7,        // how far from the center you can walk on desktop (m)
   RADIUS: 3.7,             // octagon corner radius (m)
-  SILL: 0.45,              // glass starts here
-  WALL_TOP: 2.45,          // glass ends, dome starts
-  DOME_TOP: 3.55,
+  SILL: 0.3,               // glass starts here
+  WALL_TOP: 2.7,           // glass ends, ceiling starts
+  DOME_TOP: 3.6,
 };
 
 export const SEAT_COUNT = CAPSULE.ROWS * 2;
 
-// Seat n (1-10): odd = left, even = right, seats 1-2 in front.
+// Start place n (1-10) on the floor: odd = left, even = right, 1-2 in front. Later: one per student.
 export function seatPosition(n) {
   const i = Math.min(Math.max(n, 1), SEAT_COUNT) - 1;
   const row = Math.floor(i / 2);

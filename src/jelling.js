@@ -724,6 +724,51 @@ export function buildJelling(scene, timeline, models = {}) {
   };
 }
 
+// Top-down map of Jelling for the map screen in the capsule. rect = area on the canvas.
+export function drawJellingMap(ctx, rect, cx, cz, yaw, stops) {
+  const X0 = -135, X1 = 45, Z0 = -100, Z1 = 62;
+  const k = Math.min(rect.w / (X1 - X0), rect.h / (Z1 - Z0));
+  const ox = rect.x + (rect.w - (X1 - X0) * k) / 2, oy = rect.y + (rect.h - (Z1 - Z0) * k) / 2;
+  const P = (x, z) => [ox + (x - X0) * k, oy + (z - Z0) * k];
+  const line = 'rgba(223,240,242,0.55)', dim = 'rgba(223,240,242,0.22)';
+  ctx.lineWidth = 2;
+  // Ship setting (lens outline).
+  const n = SITES.northMound;
+  ctx.strokeStyle = dim; ctx.setLineDash([3, 6]); ctx.beginPath();
+  for (const side of [-1, 1]) for (let i = 0; i <= 40; i++) {
+    const kk = -130 + i * 6.5, w = 30 * (1 - (kk / 130) ** 2);
+    const [x, y] = P(n.x + side * w, n.z + kk);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  // Palisade with the gate.
+  ctx.strokeStyle = line; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(...P(SITES.palisadeX, -100)); ctx.lineTo(...P(SITES.palisadeX, SITES.gate[0]));
+  ctx.moveTo(...P(SITES.palisadeX, SITES.gate[1])); ctx.lineTo(...P(SITES.palisadeX, 62)); ctx.stroke();
+  // Mounds, pond, buildings, stone.
+  ctx.lineWidth = 2;
+  const circle = (x, z, r, fill) => { const [a, b] = P(x, z); ctx.beginPath(); ctx.arc(a, b, r * k, 0, 7); fill ? (ctx.fillStyle = fill, ctx.fill()) : ctx.stroke(); };
+  ctx.strokeStyle = line; circle(n.x, n.z, n.r); circle(SITES.southMound.x, SITES.southMound.z, SITES.southMound.r);
+  circle(40, 4, 12, 'rgba(127,184,180,0.25)');
+  const rect2 = (x, z, w, d) => { const [a, b] = P(x - w / 2, z - d / 2); ctx.fillStyle = 'rgba(223,240,242,0.35)'; ctx.fillRect(a, b, w * k, d * k); };
+  rect2(-96, 0, 22, 7); rect2(-78, 38, 18, 6.4); rect2(-110, 36, 4, 3); rect2(-64, 4, 4, 3); rect2(SITES.church.x, SITES.church.z, 6, 10);
+  circle(SITES.stone.x, SITES.stone.z, 1.6, '#ffb36b');
+  // Stops.
+  ctx.font = '600 20px system-ui, sans-serif'; ctx.textBaseline = 'middle';
+  for (const s of Object.values(stops)) {
+    const [[x0, z0], [x1, z1]] = s.glide;
+    ctx.strokeStyle = 'rgba(255,179,107,0.6)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(...P(x0, z0)); ctx.lineTo(...P(x1, z1)); ctx.stroke(); ctx.setLineDash([]);
+    const [a, b] = P(x1, z1);
+    ctx.fillStyle = '#b9c4c7'; ctx.fillText(s.name.toUpperCase(), a + 12, b - 16);
+  }
+  // The capsule.
+  const [a, b] = P(cx, cz);
+  ctx.save(); ctx.translate(a, b); ctx.rotate(-yaw);
+  ctx.fillStyle = '#ffb36b'; ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(9, 9); ctx.lineTo(-9, 9); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.textBaseline = 'alphabetic';
+}
+
 function SKIN(i) { return [0xf1c7a5, 0xe8b48f, 0xd9a07a][i]; }
 
 export { wrapAngle };
