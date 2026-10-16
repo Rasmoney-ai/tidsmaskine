@@ -377,12 +377,20 @@ function door() {
 // Small panel by the door, seen when standing outside: the way back in.
 function returnPanel() {
   const { ctx, tex } = canvasTexture(768, 320);
-  screenBase(ctx, 'TIDSMASKINEN', 768, 320);
-  ctx.fillStyle = '#b9c4c7'; ctx.font = `28px ${FONT}`;
-  wrapText(ctx, 'Peg på et spor, og tryk for at scanne det.', 40, 110, 690, 36);
-  drawButtons(ctx, [{ label: '↩ Tilbage til kapslen', state: 'go', x: 40, y: 180, w: 688, h: 96, font: 34 }]);
-  tex.needsUpdate = true;
+  let last = null;
+  // debugLine: the performance meter (?debug=1), also shown out here.
+  const draw = (debugLine = '') => {
+    if (debugLine === last) return; last = debugLine;
+    screenBase(ctx, 'TIDSMASKINEN', 768, 320);
+    if (debugLine) { ctx.fillStyle = '#7fb8b4'; ctx.font = `20px ui-monospace, Consolas, monospace`; ctx.fillText(debugLine, 40, 84); }
+    ctx.fillStyle = '#b9c4c7'; ctx.font = `28px ${FONT}`;
+    wrapText(ctx, 'Peg på et spor, og tryk for at scanne det.', 40, debugLine ? 130 : 110, 690, 36);
+    drawButtons(ctx, [{ label: '↩ Tilbage til kapslen', state: 'go', x: 40, y: 180, w: 688, h: 96, font: 34 }]);
+    tex.needsUpdate = true;
+  };
+  draw();
   const m = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.3), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
+  m.userData.draw = draw;
   m.position.set(1.45, 1.1, -CAPSULE.RADIUS * APO - 0.35);
   m.rotation.set(0.25, Math.PI + 0.45, 0, 'YXZ');
   m.visible = false;

@@ -242,6 +242,7 @@ renderer.setAnimationLoop((now, frame) => {
     map: { x: st.x, z: st.z, yaw: st.yaw },
     scanned: [...scanner.collected], data,
   });
+  if (state.outside && state.debug) capsule.returnPanel.userData.draw(perf.summary());
   capsule.animateCore(st.w + tau, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
 
   if (app.inspect) {
