@@ -645,6 +645,7 @@ export function buildJelling(scene, timeline, models = {}) {
   if (M.b12_faar) sheepSpots.forEach((p, i) => {
     // Each sheep is its own copy with a skeleton: grazing, looking up, flicking the tail.
     const sh = quadruped(M.b12_faar, true);
+    sh.root.scale.set(1.08, 1.15, 0.76);   // the model is long and low; make it shorter and taller
     sh.root.add(blob(1.0));
     add(place(sh.root, p.x, p.z, p.yaw));
     act({ update(t) {
