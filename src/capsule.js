@@ -189,14 +189,31 @@ function drawButtons(ctx, rects) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
 
-// A small drawing of a scanned object for the lab screen.
+// A small drawing of a scanned object for the lab screen (simple line icons).
 function drawItemIcon(ctx, id, x, y, r) {
   ctx.save(); ctx.translate(x, y);
-  if (id === 'soelvmoent') {
-    ctx.fillStyle = '#c9ccd0'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#8d9196'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r * 0.86, 0, 7); ctx.stroke();
-    ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-r * 0.45, -r * 0.25 + k * r * 0.25); ctx.bezierCurveTo(-r * 0.15, -r * 0.38 + k * r * 0.25, r * 0.1, -r * 0.1 + k * r * 0.25, r * 0.45, -r * 0.3 + k * r * 0.25); ctx.stroke(); }
-  } else { ctx.strokeStyle = '#dff0f2'; ctx.lineWidth = 3; ctx.strokeRect(-r, -r, 2 * r, 2 * r); }
+  ctx.strokeStyle = '#dff0f2'; ctx.fillStyle = 'rgba(223,240,242,0.12)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+  const poly = (pts, fill = true) => { ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * r, py * r) : ctx.moveTo(px * r, py * r))); ctx.closePath(); if (fill) ctx.fill(); ctx.stroke(); };
+  const ring = (rr, fill = true) => { ctx.beginPath(); ctx.arc(0, 0, rr * r, 0, 7); if (fill) ctx.fill(); ctx.stroke(); };
+  switch (id) {
+    case 'soelvmoent':
+      ctx.fillStyle = '#c9ccd0'; ring(1); ctx.strokeStyle = '#8d9196'; ring(0.86, false);
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-r * 0.45, -r * 0.25 + k * r * 0.25); ctx.bezierCurveTo(-r * 0.15, -r * 0.38 + k * r * 0.25, r * 0.1, -r * 0.1 + k * r * 0.25, r * 0.45, -r * 0.3 + k * r * 0.25); ctx.stroke(); }
+      break;
+    case 'vaevevaegt': ring(0.8); ctx.fillStyle = '#0d1013'; ring(0.32); break;
+    case 'hvaessesten': poly([[-1, -0.18], [1, -0.28], [1, 0.12], [-1, 0.22]]); ctx.beginPath(); ctx.arc(0.8 * r, -0.05 * r, 0.06 * r, 0, 7); ctx.stroke(); break;
+    case 'kam': poly([[-1, -0.35], [1, -0.35], [1, 0], [-1, 0]]); for (let i = 0; i < 11; i++) { const px = (-0.9 + i * 0.18) * r; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, 0.45 * r); ctx.stroke(); } break;
+    case 'toervblok': poly([[-0.9, -0.3], [0.9, -0.3], [0.9, 0.5], [-0.9, 0.5]]); ctx.beginPath(); ctx.moveTo(-0.9 * r, -0.1 * r); ctx.lineTo(0.9 * r, -0.1 * r); ctx.stroke(); break;
+    case 'thorshammer': poly([[-0.7, -0.15], [0.7, -0.15], [0.7, 0.15], [0.2, 0.15], [0.2, 0.9], [-0.2, 0.9], [-0.2, 0.15], [-0.7, 0.15]]); ctx.beginPath(); ctx.arc(0, -0.38 * r, 0.2 * r, 0, 7); ctx.stroke(); break;
+    case 'spade': poly([[-0.35, 0.2], [0.35, 0.2], [0.35, 0.95], [-0.35, 0.95]]); ctx.beginPath(); ctx.moveTo(0, 0.2 * r); ctx.lineTo(0, -0.95 * r); ctx.moveTo(-0.25 * r, -0.95 * r); ctx.lineTo(0.25 * r, -0.95 * r); ctx.stroke(); break;
+    case 'store_sten': poly([[-0.75, 1], [0.75, 1], [0.45, -1], [-0.4, -1]]); for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-0.4 * r, (-0.55 + k * 0.4) * r); ctx.lineTo(0.4 * r, (-0.55 + k * 0.4) * r); ctx.stroke(); } break;
+    case 'lille_sten': poly([[-0.5, 1], [0.5, 1], [0.35, -0.6], [-0.3, -0.7]]); ctx.beginPath(); ctx.moveTo(0, -0.4 * r); ctx.lineTo(0, 0.8 * r); ctx.stroke(); break;
+    case 'kors': poly([[-0.15, -0.6], [0.15, -0.6], [0.15, -0.2], [0.55, -0.2], [0.55, 0.1], [0.15, 0.1], [0.15, 0.95], [-0.15, 0.95], [-0.15, 0.1], [-0.55, 0.1], [-0.55, -0.2], [-0.15, -0.2]]); ctx.beginPath(); ctx.arc(0, -0.78 * r, 0.17 * r, 0, 7); ctx.stroke(); break;
+    case 'mejsel': poly([[-0.12, -1], [0.12, -1], [0.12, 0.6], [0, 1], [-0.12, 0.6]]); break;
+    case 'egestolpe': poly([[-0.3, 1], [0.3, 1], [0.3, -0.6], [0, -1], [-0.3, -0.6]]); for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(0, 0.9 * r, (0.1 + k * 0.08) * r, Math.PI, 0); ctx.stroke(); } break;
+    case 'oekse': ctx.beginPath(); ctx.moveTo(-0.1 * r, 1 * r); ctx.lineTo(0.15 * r, -0.9 * r); ctx.stroke(); poly([[0.05, -0.9], [0.75, -1], [0.85, -0.2], [0.1, -0.45]]); break;
+    default: ctx.strokeRect(-r, -r, 2 * r, 2 * r);
+  }
   ctx.restore();
 }
 
@@ -264,40 +281,51 @@ function panels(mapDrawer) {
     s.tex.needsUpdate = true;
   }
 
-  function drawMap(x, z, yaw) {
+  function drawMap(x, z, yaw, clues) {
     const s = screens.map, ctx = s.ctx;
-    const key = `${Math.round(x * 2)}|${Math.round(z * 2)}`;
+    const key = `${Math.round(x * 2)}|${Math.round(z * 2)}|${clues.sharp.toFixed(2)}|${clues.links.map((l) => l.label).join()}`;
     if (key === s.last) return; s.last = key;
     screenBase(ctx, 'KORT · UKENDT STED');
-    mapDrawer(ctx, { x: 40, y: 70, w: SW - 80, h: SH - 110 }, x, z, yaw);
+    mapDrawer(ctx, { x: 40, y: 70, w: SW - 80, h: SH - 110 }, x, z, yaw, clues);
     s.tex.needsUpdate = true;
   }
 
-  // Laboratory: the scanned objects and their analyses (from the data file).
+  // Laboratory: one scanned object at a time with all its analyses; arrows page through the objects.
+  let labIdx = -1, labCount = 0, labRects = [];
   function drawLab(scanned, data) {
     const s = screens.lab, ctx = s.ctx;
-    const key = scanned.join();
+    if (scanned.length !== labCount) { labCount = scanned.length; labIdx = labCount - 1; }   // a new object: show it
+    const key = scanned.join() + '|' + labIdx;
     if (key === s.last && s.drawn) return; s.last = key; s.drawn = true;
     screenBase(ctx, 'LABORATORIUM · ANALYSER');
+    labRects = [];
     if (!scanned.length) {
       ctx.fillStyle = '#7d8a8e'; ctx.font = `300 40px ${FONT}`;
       ctx.fillText('Ingen scannede spor endnu.', 40, 150);
       ctx.fillStyle = '#b9c4c7'; ctx.font = `30px ${FONT}`;
       wrapText(ctx, 'Gå ud af kapslen, og peg med håndscanneren på et spor for at scanne det. Laboratoriet arbejder på en kopi – originalen bliver liggende.', 40, 210, SW - 80, 40);
-    } else {
-      // Newest first; room for two objects on the screen.
-      scanned.slice(-2).reverse().forEach((id, i) => {
-        const item = data.items[id] || { name: id, analyses: [] }, y = 100 + i * 220;
-        drawItemIcon(ctx, id, 110, y + 70, 60);
-        ctx.fillStyle = '#f2f6f7'; ctx.font = `300 42px ${FONT}`; ctx.fillText(item.name.toUpperCase(), 200, y + 40);
-        if (item.found) { ctx.fillStyle = '#7d8a8e'; ctx.font = `24px ${FONT}`; ctx.fillText(item.found, 200, y + 74); }
-        let yy = y + 118;
-        for (const a of item.analyses) {
-          ctx.fillStyle = '#ffb36b'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, a.type.toUpperCase(), 200, yy, 4);
-          ctx.fillStyle = '#dfe7e9'; ctx.font = `30px ${FONT}`;
-          yy = wrapText(ctx, a.text, 200, yy + 38, SW - 240, 38) + 6;
-        }
-      });
+      s.tex.needsUpdate = true;
+      return;
+    }
+    // Page arrows and counter in the top right.
+    const n = scanned.length;
+    labRects = [
+      { id: 'labPrev', label: '◀', state: n > 1 ? 'on' : 'off', x: SW - 290, y: 24, w: 80, h: 50, font: 26 },
+      { id: 'labNext', label: '▶', state: n > 1 ? 'on' : 'off', x: SW - 120, y: 24, w: 80, h: 50, font: 26 },
+    ];
+    drawButtons(ctx, labRects);
+    ctx.fillStyle = '#b9c4c7'; ctx.font = `600 24px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText(`${labIdx + 1} / ${n}`, SW - 165, 57); ctx.textAlign = 'left';
+    const id = scanned[labIdx], item = data.items[id] || { name: id, analyses: [] };
+    drawItemIcon(ctx, id, 96, 150, 50);
+    ctx.fillStyle = '#f2f6f7'; ctx.font = `300 40px ${FONT}`; ctx.fillText(item.name.toUpperCase(), 180, 136);
+    if (item.found) { ctx.fillStyle = '#7d8a8e'; ctx.font = `22px ${FONT}`; wrapText(ctx, item.found, 180, 170, SW - 220, 28); }
+    // Two columns: analysis type on the left, the text on the right.
+    let yy = 236;
+    for (const an of item.analyses) {
+      ctx.fillStyle = '#ffb36b'; ctx.font = `600 20px ${FONT}`; letterSpaced(ctx, an.type.toUpperCase(), 40, yy, 3);
+      ctx.fillStyle = '#dfe7e9'; ctx.font = `24px ${FONT}`;
+      yy = wrapText(ctx, an.text, 250, yy, SW - 290, 30) + 12;
     }
     s.tex.needsUpdate = true;
   }
@@ -306,15 +334,18 @@ function panels(mapDrawer) {
     group, meshes,
     // uv on a guide screen -> button id (only active buttons).
     buttonAt(mesh, uv) {
-      if (mesh.userData.type !== 'guide') return null;
       const x = uv.x * SW, y = (1 - uv.y) * SH;
+      if (mesh.userData.type === 'lab') { const b = labRects.find((q) => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h && q.state !== 'off'); return b ? b.id : null; }
+      if (mesh.userData.type !== 'guide') return null;
       const r = rects.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h && b.state !== 'off' && b.state !== 'here');
       return r ? r.id : null;
     },
+    // Page through the lab's objects (dir = -1 or +1).
+    labStep(dir) { if (labCount > 1) { labIdx = (labIdx + dir + labCount) % labCount; screens.lab.drawn = false; } },
     draw({ caption, buttons, debug, status, map, t, scanned, data }) {
       drawGuide(caption, buttons, debug);
       drawStatus(status, t);
-      drawMap(map.x, map.z, map.yaw);
+      drawMap(map.x, map.z, map.yaw, map.clues);
       drawLab(scanned, data);
     },
   };

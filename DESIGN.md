@@ -60,14 +60,16 @@ Døren åbner kun, når kapslen står stille ved en zone. Kapslen ses stadig kun
 
 Fire små zoner, en pr. stop, bygget på de eksisterende stop-scener. Hver zone skal kunne undersøges på cirka 2 × 2 meter med drejning, så den også virker hjemme.
 
-| Zone | Hvad man ser | Genstande til scanning (forslag) |
+| Zone | Hvad man ser | Genstande til scanning |
 | --- | --- | --- |
-| Landsbyen | Huse, ildsted, væv, brændestabel | Vævevægt, kam af tak, hvæssesten, sølvmønt fra Østen (dirhem) |
-| Gravhøjene | Nordhøjen og Sydhøjen, tørv stablet til byggeri | Tørveblok, spade, efterladt Thorshammer |
-| Runestenen | Den store sten under arbejde, den lille sten, trækirken | Haralds sten (relieffer og runer), Gorms sten, mejsel, lille kors |
-| Palisaden | Stolperækken og porten | Egestolpe (til årringsanalyse), økse, hovspor |
+| Landsbyen | Huse, ildsted, væv, brændestabel med økse i klodsen | Sølvmønt (på bænken ved ildstedet), vævevægt (under væven), hvæssesten (ved brændestablen), kam (i døråbningen til det store hus) |
+| Gravhøjene | Nordhøjen og Sydhøjen, tørv stablet til byggeri, oksekærre | Tørveblok (i stablen), lille hammer (tabt i græsset), spade (stukket i jorden ved stablen) |
+| Runestenen | Den store sten under arbejde, den lille sten, trækirken | Den store sten, den lille sten, lille kors (ved trækirken), mejsel (ved foden af den store sten) |
+| Palisaden | Stolperækken, porten og hovspor i mudderet | Egestolpe (i rækken ved porten), økse (hugget fast i en brændeklods ved porten) |
 
-Genstandene er forslag og skal tjekkes historisk. Hver zone bør have to til fire genstande.
+Genstandene og analyserne ligger i `data/jelling.json` (13 genstande, milepæl 2). Hver genstand har feltet `trace`: `her` peger på stedet og gør kortet skarpere, `ud` peger på forbindelser udadtil og tegner en linje mod kortkanten i retning af `link.region` med teksten fra `link.label`.
+
+Indholdet skal faktatjekkes af en fagperson før elevtest. Hver zone har to til fire genstande.
 
 ## Håndscanneren og laboratoriet
 

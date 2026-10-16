@@ -366,7 +366,8 @@ function runestones(M = {}) {
     const big = texturedProp(M.d1_runesten);
     big.rotation.y = RUNE_FACE_YAW;
     g.add(big);
-    if (M.d2_gormsten) { const small = texturedProp(M.d2_gormsten); small.position.set(3, 0, -2.5); small.rotation.y = 0.4; g.add(small); }
+    g.userData.big = big;
+    if (M.d2_gormsten) { const small = texturedProp(M.d2_gormsten); small.position.set(3, 0, -2.5); small.rotation.y = 0.4; g.add(small); g.userData.small = small; }
     const chips = new Builder(104), rr = rng(105);
     for (let i = 0; i < 18; i++) chips.add(G.dodeca(0.05 + rr() * 0.05), 0xb0aa9f, { pos: [(rr() - 0.5) * 1.6, 0.03, 0.9 + rr() * 0.9] });
     g.add(chips.mesh());
@@ -490,6 +491,75 @@ function hoofPrints(x, z, yaw) {
   return m;
 }
 
+// Small traces built in code. Slightly larger than life so they can be seen and pointed at in VR.
+
+// Clay loom weights: ring shapes lying under the loom, many alike.
+function loomWeights() {
+  const b = new Builder(820), r = rng(821);
+  for (let i = 0; i < 7; i++) {
+    b.add(G.torus(0.06, 0.032, 6, 10), 0x9a6a4a, { pos: [(r() - 0.5) * 0.7, 0.03, (r() - 0.5) * 0.9], rot: [Math.PI / 2 + (r() - 0.5) * 0.3, 0, r() * 3], vary: 0.08 });
+  }
+  return b.mesh();
+}
+
+// Whetstone of light slate, polished on one side.
+function whetstone() {
+  const b = new Builder(822);
+  b.add(G.box(0.3, 0.035, 0.06), 0x8e99a3, { pos: [0, 0.018, 0], vary: 0.05 });
+  b.add(G.box(0.28, 0.004, 0.05), 0xb9c3cb, { pos: [0, 0.037, 0] });
+  b.add(G.cyl(0.008, 0.008, 0.07, 6), 0x2b2b2b, { pos: [0.13, 0.02, 0], rot: [Math.PI / 2, 0, 0] });   // hole for a string
+  return b.mesh();
+}
+
+// Antler comb with iron rivets, lying in the doorway.
+function comb() {
+  const b = new Builder(823);
+  b.add(G.box(0.26, 0.018, 0.05), 0xd9ccb0, { pos: [0, 0.009, 0], vary: 0.04 });
+  for (let i = 0; i < 16; i++) b.add(G.box(0.008, 0.012, 0.055), 0xe6dcc4, { pos: [-0.12 + i * 0.016, 0.006, 0.05] });
+  for (let i = 0; i < 5; i++) b.add(G.ball(0.006, 0), 0x3a3a3a, { pos: [-0.1 + i * 0.05, 0.02, 0] });
+  return b.mesh();
+}
+
+// Spade of oak with an iron edge, stuck into the ground at an angle.
+function spade() {
+  const g = new THREE.Group();
+  const b = new Builder(824);
+  b.add(G.cyl(0.02, 0.022, 1.0, 6), 0x8b6a42, { pos: [0, 0.7, 0] });
+  b.add(G.box(0.12, 0.03, 0.04), 0x8b6a42, { pos: [0, 1.2, 0] });
+  b.add(G.box(0.2, 0.28, 0.03), 0x9b7a50, { pos: [0, 0.12, 0], vary: 0.05 });
+  b.add(G.box(0.21, 0.05, 0.035), 0x5d6266, { pos: [0, -0.02, 0] });
+  const m = b.mesh();
+  m.rotation.x = 0.25;
+  m.position.y = -0.12;   // the blade is partly in the ground
+  g.add(m);
+  return g;
+}
+
+// Small silver pendants on a ring: a hammer or a cross. Lying flat in the grass.
+function pendant(kind) {
+  const b = new Builder(825);
+  const silver = 0xc9ccd0;
+  if (kind === 'hammer') {
+    b.add(G.box(0.1, 0.012, 0.035), silver, { pos: [0, 0.006, -0.03] });
+    b.add(G.box(0.035, 0.012, 0.08), silver, { pos: [0, 0.006, 0.02] });
+  } else {
+    b.add(G.box(0.035, 0.012, 0.13), silver, { pos: [0, 0.006, 0.01] });
+    b.add(G.box(0.1, 0.012, 0.035), silver, { pos: [0, 0.006, -0.02] });
+  }
+  b.add(G.torus(0.016, 0.005, 4, 10), silver, { pos: [0, 0.006, kind === 'hammer' ? -0.065 : -0.07], rot: [Math.PI / 2, 0, 0] });
+  return b.mesh();
+}
+
+// Fresh wood chips scattered on the ground.
+function chips(color, n, radius) {
+  const b = new Builder(826), r = rng(827);
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2, d = 0.35 + r() * radius;
+    b.add(G.box(0.06 + r() * 0.05, 0.008, 0.02 + r() * 0.02), color, { pos: [Math.cos(a) * d, 0.006, Math.sin(a) * d], rot: [0, r() * 3, 0], vary: 0.1 });
+  }
+  return b.mesh();
+}
+
 // A silver coin with a strange inscription, lying on the bench (scannable).
 function silverCoin() {
   const { ctx, tex } = canvasTexture(256, 256);
@@ -532,6 +602,16 @@ export function buildJelling(scene, timeline, models = {}) {
   const gy = (x, z) => groundHeight(x, z);
   const modelAt = (key, x, z, yaw = 0) => place(prop(M[key]), x, z, yaw);
   const item = (key) => prop(M[key]);
+  // A chopping block with an axe stuck in it. userData.axe = the axe (for scanning).
+  const axeInBlock = (x, z, yaw) => {
+    const block = new Builder(306);
+    block.add(G.cyl(0.3, 0.33, 0.5, 9), 0x7a5532, { pos: [0, 0.25, 0], vary: 0.06 });
+    block.add(G.cyl(0.29, 0.29, 0.02, 9), 0xc9a26e, { pos: [0, 0.505, 0] });
+    const chop = place(block.mesh(), x, z, yaw);
+    if (M.f1_oekse) { const axe = item('f1_oekse'); axe.rotation.set(0.75, 0, Math.PI); axe.position.set(0, 0.98, -0.3); chop.add(axe); chop.userData.axe = axe; }
+    chop.add(blob(0.8));
+    return chop;
+  };
   // Something the hand scanner can scan: the object, a larger invisible hit volume, and its id in the data file.
   const scannable = (id, object, hitRadius) => {
     // Own copy of the shared material, so the scan glow lights up only this object.
@@ -541,57 +621,66 @@ export function buildJelling(scene, timeline, models = {}) {
     scannables.push({ id, object, hit, zone });
   };
 
-  // --- Village: recently left. Smoke still rises, the axe sits in the block, the weave is unfinished.
+  // --- Village: recently left. Smoke still rises, an axe sits in the block, the weave is unfinished.
+  // The scannable things lie 3-8 m from the spot outside the door (see ZONES in timeline.js).
+  const FIRE = { x: -94.5, z: 9.8 }, BENCH = { x: -96.7, z: 10.3, yaw: 0.1 }, LOOM = { x: -92.2, z: 7.4, yaw: Math.PI / 2 };
+  const CHOP = { x: -100.6, z: 10.9 }, WOODPILE = { x: -103.4, z: 11.8, yaw: 0.2 }, DOORWAY = { x: -99.6, z: 4.75 };
   if (M.b1_langhus) add(modelAt('b1_langhus', -96, 0, Math.PI / 2)); else add(place(longhouse(22, 7.2, 301), -96, 0));
   if (M.b2_langhus_lille) add(modelAt('b2_langhus_lille', -78, 38, Math.PI / 2 + 0.06)); else add(place(longhouse(18, 6.4, 302), -78, 38, 0.06));
   if (M.b3_grubehus) add(instanced(M.b3_grubehus, [{ x: -110, y: gy(-110, 36), z: 36, yaw: 0.3 }, { x: -64, y: gy(-64, 4), z: 4, yaw: -0.4 }]));
   else { add(place(pitHouse(303), -110, 36, 0.3)); add(place(pitHouse(304), -64, 4, -0.4)); }
-  if (M.b5_braende) add(modelAt('b5_braende', -106.5, 30.5, 0.2)); else add(place(woodpile(305), -106, 29, 0.2));
+  if (M.b5_braende) add(modelAt('b5_braende', WOODPILE.x, WOODPILE.z, WOODPILE.yaw)); else add(place(woodpile(305), WOODPILE.x, WOODPILE.z, WOODPILE.yaw));
   // Empty sheep pen.
   if (M.b11_hegn) {
     const cx = -122, cz = 2, rad = 7, n = Math.round((Math.PI * 2 * rad) / 2.06), list = [];
     for (let i = 1; i < n; i++) { const a = (i / n) * Math.PI * 2; list.push({ x: cx + Math.cos(a) * rad, y: gy(cx, cz), z: cz + Math.sin(a) * rad, yaw: -a - Math.PI / 2 }); }
     add(instanced(M.b11_hegn, list));
   } else add(fenceRing(-122, 2, 7, r));
-  const BENCH = { x: -85.6, z: 10.4, yaw: 0.15 };
   if (M.b7_toende && M.b8_broend && M.b9_fisk && M.b10_baenk) {
-    add(instanced(M.b7_toende, [[-89, 4.6], [-88.3, 5.4], [-81, 34], [-74.5, 34.4], [-103, 4.8]].map(([x, z], i) => ({ x, z, y: gy(x, z), yaw: i }))));
+    add(instanced(M.b7_toende, [[-89, 4.6], [-88.3, 5.4], [-81, 34], [-74.5, 34.4], [-104.2, 5.2]].map(([x, z], i) => ({ x, z, y: gy(x, z), yaw: i }))));
     add(modelAt('b8_broend', -96, 32, 0.3));
     if (M.f8_spand) add(place(item('f8_spand'), -95.1, 33.2, 0.5, 0.37));
-    add(modelAt('b9_fisk', -100, 9, Math.PI / 2));
+    add(modelAt('b9_fisk', -108.5, 9, Math.PI / 2));
     add(instanced(M.b10_baenk, [[BENCH.x, BENCH.z, BENCH.yaw], [-73, 32, -0.1]].map(([x, z, yaw]) => ({ x, z, y: gy(x, z), yaw }))));
   } else add(props());
   // Loom facing east (+x), left half-finished; the spindle lies on the ground in front of it.
-  const LOOM = { x: -88.5, z: 8, yaw: Math.PI / 2 };
   add(M.b4_vaev ? modelAt('b4_vaev', LOOM.x, LOOM.z, LOOM.yaw) : place(loom(), LOOM.x, LOOM.z, -Math.PI / 2));
-  if (M.f7_ten) { const sp = item('f7_ten'); sp.rotation.set(0, 0.7, Math.PI / 2); add(place(sp, LOOM.x + 0.9, LOOM.z + 0.3, 0, 0.03)); }
+  if (M.f7_ten) { const sp = item('f7_ten'); sp.rotation.set(0, 0.7, Math.PI / 2); add(place(sp, LOOM.x + 0.9, LOOM.z + 0.6, 0, 0.03)); }
   // Fire still burning, smoke rising.
   let flame;
-  if (M.b6_ildsted) { const f = parts(M.b6_ildsted); add(place(f.root, -84, 12)); flame = f.parts.flammer; }
-  else { const fire = place(firePit(), -84, 12); add(fire); flame = fire.flame; }
+  if (M.b6_ildsted) { const f = parts(M.b6_ildsted); add(place(f.root, FIRE.x, FIRE.z)); flame = f.parts.flammer; }
+  else { const fire = place(firePit(), FIRE.x, FIRE.z); add(fire); flame = fire.flame; }
   act({ update(t) { flame.scale.set(1 + 0.12 * Math.sin(t * 11), 1 + 0.25 * Math.sin(t * 7.3) + 0.1 * Math.sin(t * 17), 1 + 0.12 * Math.cos(t * 9)); } });
-  for (const s of [smoke(-96, 5.4, 0, 1), smoke(-78, 5.1, 38, 2), smoke(-84, 1.0, 12, 3)]) { add(s.group); act(s); }
-  // Chopping block with the axe left stuck in it.
-  const block = new Builder(306);
-  block.add(G.cyl(0.3, 0.33, 0.5, 9), 0x7a5532, { pos: [0, 0.25, 0], vary: 0.06 });
-  block.add(G.cyl(0.29, 0.29, 0.02, 9), 0xc9a26e, { pos: [0, 0.505, 0] });
-  const chop = place(block.mesh(), -89.6, 12.9, 0.5);
-  if (M.f1_oekse) { const axe = item('f1_oekse'); axe.rotation.set(0.75, 0, Math.PI); axe.position.set(0, 0.98, -0.3); chop.add(axe); }
-  chop.add(blob(0.8));
-  add(chop);
-  // The silver coin on the bench near the fire.
+  for (const s of [smoke(-96, 5.4, 0, 1), smoke(-78, 5.1, 38, 2), smoke(FIRE.x, 1.0, FIRE.z, 3)]) { add(s.group); act(s); }
+  // Chopping block by the woodpile, with an axe left stuck in it.
+  add(axeInBlock(CHOP.x, CHOP.z, 0.5));
+
+  // Scannable traces in the village.
   const coin = silverCoin();
-  const bx = BENCH.x + Math.cos(BENCH.yaw) * 0.35, bz = BENCH.z - Math.sin(BENCH.yaw) * 0.35;
-  add(place(coin, bx, bz, 0.4, 0.475));
-  scannable('soelvmoent', coin, 0.14);
+  add(place(coin, BENCH.x + Math.cos(BENCH.yaw) * 0.35, BENCH.z - Math.sin(BENCH.yaw) * 0.35, 0.4, 0.475));
+  scannable('soelvmoent', coin, 0.16);
+  const weights = loomWeights();
+  add(place(weights, LOOM.x + 0.35, LOOM.z, 0));
+  scannable('vaevevaegt', weights, 0.45);
+  const whet = whetstone();
+  add(place(whet, CHOP.x + 0.55, CHOP.z + 0.25, 0.8, 0.02));
+  scannable('hvaessesten', whet, 0.2);
+  const combM = comb();
+  add(place(combM, DOORWAY.x + 0.4, DOORWAY.z, 0.3, 0.012));
+  scannable('kam', combM, 0.25);
 
   // --- Palisade, mounds, ship setting, church, stones --------------------
   zone = 'always';
+  // The palisade module nearest the gate on the south side stands apart so it can be scanned.
+  const POST = { x: SITES.palisadeX, z: 9.25 };
   if (M.c1_palisade && M.c2_port) {
     const list = [];
-    for (let z = -108; z <= 108; z += 4) if (z + 2 <= SITES.gate[0] || z - 2 >= SITES.gate[1]) list.push({ x: SITES.palisadeX, z, y: gy(SITES.palisadeX, z) - 0.05, yaw: Math.PI / 2 });
+    for (let z = POST.z - 4 * 30; z <= 110; z += 4) if (z !== POST.z && (z + 2 <= SITES.gate[0] - 1.7 || z - 2 >= SITES.gate[1] + 1.7)) list.push({ x: SITES.palisadeX, z, y: gy(SITES.palisadeX, z) - 0.05, yaw: Math.PI / 2 });
     add(instanced(M.c1_palisade, list));
     add(modelAt('c2_port', SITES.palisadeX, (SITES.gate[0] + SITES.gate[1]) / 2, Math.PI / 2));
+    const post = place(prop(M.c1_palisade), POST.x, POST.z, Math.PI / 2, -0.05);
+    add(post);
+    scannable('egestolpe', post, 2.2);
   } else add(palisade());
   // Hoof prints in the mud just inside the gate.
   add(hoofPrints(SITES.palisadeX + 3.2, 19.5, Math.PI / 2 + 0.2));
@@ -601,27 +690,54 @@ export function buildJelling(scene, timeline, models = {}) {
   sh(-96, 0, 27, 11, 0, 4); sh(-78, 38, 23, 10, 0.06, 4); sh(-110, 36, 7, 6, 0.3, 2); sh(-64, 4, 7, 6, -0.4, 2);
   sh(SITES.church.x, SITES.church.z - 1, 10, 17, 0, 5); sh(SITES.stone.x, SITES.stone.z, 2.4, 2.4, 0, 2.4);
   for (let z = -110; z <= 110; z += 6) if (z < SITES.gate[0] - 2 || z > SITES.gate[1] + 2) sh(SITES.palisadeX, z, 3.2, 7, 0, 3);
-  sh(-29, 35, 6, 3.5, 0, 0.5); sh(-33, 40, 2.6, 3.5, 0.4, 1); sh(-106, 29, 3, 2, 0.2, 0.8);
+  sh(-29, 35, 6, 3.5, 0, 0.5); sh(-33, 40, 2.6, 3.5, 0.4, 1); sh(WOODPILE.x + 0.4, WOODPILE.z, 3, 2, 0.2, 0.8);
   add(staticShadows(shadows));
   add(M.d3_kirke ? modelAt('d3_kirke', SITES.church.x, SITES.church.z, 0) : church());
-  add(runestones(M));
+  const stones = runestones(M);
+  add(stones);
+  if (stones.userData.big) scannable('store_sten', stones.userData.big, 1.35);
+  if (stones.userData.small) scannable('lille_sten', stones.userData.small, 0.85);
+
+  // Inside the palisade by the gate: another chopping block with an axe, fresh oak chips around it.
+  zone = 'mounds';
+  const gateAxe = axeInBlock(SITES.palisadeX + 2.4, 14.4, -0.6);
+  gateAxe.add(chips(0xd8b98a, 22, 0.9));
+  add(gateAxe);
+  scannable('oekse', gateAxe.userData.axe || gateAxe, 0.45);
 
   // Turf stack and the ox cart, left where the work stopped.
-  zone = 'mounds';
   if (M.c5_toervstak && M.c6_kaerre) {
     add(modelAt('c5_toervstak', -29, 35, 0.1));
     add(modelAt('c6_kaerre', -33, 40, 0.4));
   }
-  if (M.c4_toerv) for (const [x, z, yaw] of [[-27.4, 33.6, 0.5], [-26.6, 34.4, 1.2]]) add(modelAt('c4_toerv', x, z, yaw));
+  if (M.c4_toerv) {
+    add(modelAt('c4_toerv', -27.4, 33.6, 0.5));
+    const block = modelAt('c4_toerv', -26.5, 33.9, 1.2);
+    add(block);
+    scannable('toervblok', block, 0.4);
+  }
+  const spadeM = spade();
+  add(place(spadeM, -28.4, 33.5, 0.4));
+  scannable('spade', spadeM, 0.55);
+  const hammer = pendant('hammer');
+  add(place(hammer, -25.1, 33.3, 0.9, 0.012));
+  scannable('thorshammer', hammer, 0.2);
 
   // Tools left by the runestone and the church door.
   zone = 'stone';
   const S = SITES.stone, n2 = [-0.7071, 0.7071], tg = [0.7071, 0.7071];
   const near = (dn, dt) => [S.x + n2[0] * dn + tg[0] * dt, S.z + n2[1] * dn + tg[1] * dt];
   if (M.f2_hammer) { const h = item('f2_hammer'); h.rotation.set(0, 0, Math.PI / 2); const [x, z] = near(0.9, 0.6); add(place(h, x, z, 1.1, 0.03)); }
-  if (M.f3_mejsel) { const c = item('f3_mejsel'); c.rotation.set(0, 0, Math.PI / 2); const [x, z] = near(1.0, 0.25); add(place(c, x, z, -0.4, 0.012)); }
+  if (M.f3_mejsel) {
+    const c = item('f3_mejsel'); c.rotation.set(0, 0, Math.PI / 2); c.scale.setScalar(1.6);
+    const [x, z] = near(1.0, 0.25); const holder = place(new THREE.Group(), x, z, -0.4, 0.015); holder.add(c); add(holder);
+    scannable('mejsel', holder, 0.25);
+  }
   if (M.f4_spyd) { const s = item('f4_spyd'); s.rotation.x = -1.37; add(place(s, SITES.church.x + 2.3, SITES.church.z + 7.05, 0, 0.02)); }
   if (M.f5_skjold) { const s = item('f5_skjold'); s.rotation.set(0, -Math.PI / 2, 0); s.rotation.x = -0.15; add(place(s, SITES.church.x - 2.2, SITES.church.z + 7.1, 0, 0.43)); }
+  const cross = pendant('cross');
+  add(place(cross, -1.2, -19.6, 0.5, 0.012));
+  scannable('kors', cross, 0.2);
 
   scene.add(group);
   return {
@@ -636,13 +752,19 @@ export function buildJelling(scene, timeline, models = {}) {
 }
 
 // Top-down map of Jelling for the map screen in the capsule. rect = area on the canvas.
-export function drawJellingMap(ctx, rect, cx, cz, yaw, stops) {
+// Directions on the map for traces that point outward. No place names are shown, only directions.
+const REGION_DIR = { centralasien: 'east', norge: 'north', frankerriget: 'south' };
+
+export function drawJellingMap(ctx, rect, cx, cz, yaw, stops, clues = { sharp: 1, links: [] }) {
   const X0 = -135, X1 = 45, Z0 = -100, Z1 = 62;
   const k = Math.min(rect.w / (X1 - X0), rect.h / (Z1 - Z0));
   const ox = rect.x + (rect.w - (X1 - X0) * k) / 2, oy = rect.y + (rect.h - (Z1 - Z0) * k) / 2;
   const P = (x, z) => [ox + (x - X0) * k, oy + (z - Z0) * k];
   const line = 'rgba(223,240,242,0.55)', dim = 'rgba(223,240,242,0.22)';
   ctx.lineWidth = 2;
+  // The site starts blurred; each trace that points to this place makes it sharper.
+  ctx.save();
+  ctx.filter = clues.sharp < 1 ? `blur(${(1 - clues.sharp) * 14}px)` : 'none';
   // Ship setting (lens outline).
   const n = SITES.northMound;
   ctx.strokeStyle = dim; ctx.setLineDash([3, 6]); ctx.beginPath();
@@ -664,6 +786,27 @@ export function drawJellingMap(ctx, rect, cx, cz, yaw, stops) {
   const rect2 = (x, z, w, d) => { const [a, b] = P(x - w / 2, z - d / 2); ctx.fillStyle = 'rgba(223,240,242,0.35)'; ctx.fillRect(a, b, w * k, d * k); };
   rect2(-96, 0, 22, 7); rect2(-78, 38, 18, 6.4); rect2(-110, 36, 4, 3); rect2(-64, 4, 4, 3); rect2(SITES.church.x, SITES.church.z, 6, 10);
   circle(SITES.stone.x, SITES.stone.z, 1.6, '#ffb36b');
+  ctx.restore();
+  // Lines outward for traces that point to places far away.
+  const mid = [rect.x + rect.w / 2, rect.y + rect.h / 2], used = {};
+  ctx.font = '600 20px system-ui, sans-serif';
+  for (const l of clues.links) {
+    const dir = REGION_DIR[l.region] || 'east', k2 = used[dir] = (used[dir] || 0) + 1, off = (k2 - 1) * 34;
+    const end = dir === 'east' ? [rect.x + rect.w - 6, mid[1] + off] : dir === 'north' ? [mid[0] + off, rect.y + 6] : [mid[0] + off, rect.y + rect.h - 6];
+    const start = [mid[0] + (dir === 'east' ? 0 : off), mid[1] + (dir === 'east' ? off : 0)];
+    ctx.strokeStyle = 'rgba(255,179,107,0.9)'; ctx.lineWidth = 3; ctx.setLineDash([10, 7]);
+    ctx.beginPath(); ctx.moveTo(...start); ctx.lineTo(...end); ctx.stroke(); ctx.setLineDash([]);
+    // Arrow head at the edge.
+    const ang = Math.atan2(end[1] - start[1], end[0] - start[0]);
+    ctx.fillStyle = '#ffb36b'; ctx.beginPath(); ctx.moveTo(...end);
+    ctx.lineTo(end[0] - 16 * Math.cos(ang - 0.4), end[1] - 16 * Math.sin(ang - 0.4)); ctx.lineTo(end[0] - 16 * Math.cos(ang + 0.4), end[1] - 16 * Math.sin(ang + 0.4)); ctx.fill();
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = dir === 'east' ? 'right' : 'left';
+    // Labels for the same direction are stacked so they do not overlap.
+    const stack = (k2 - 1) * 26;
+    ctx.fillText(l.label.toUpperCase(), dir === 'east' ? end[0] - 24 : end[0] + 14, dir === 'east' ? end[1] - 18 : dir === 'north' ? end[1] + 22 + stack : end[1] - 22 - stack);
+    ctx.textAlign = 'left';
+  }
   // Stops.
   ctx.font = '600 20px system-ui, sans-serif'; ctx.textBaseline = 'middle';
   for (const s of Object.values(stops)) {

@@ -39,7 +39,7 @@ const [models, data] = await Promise.all([
 ]);
 const world = buildWorld(scene, occupied, models);
 const jelling = buildJelling(scene, timeline, models);
-const capsule = buildCapsule({ mapDrawer: (ctx, r, x, z, yaw) => drawJellingMap(ctx, r, x, z, yaw, timeline.stops) });
+const capsule = buildCapsule({ mapDrawer: (ctx, r, x, z, yaw, clues) => drawJellingMap(ctx, r, x, z, yaw, timeline.stops, clues) });
 scene.add(capsule.vehicle);
 capsule.rig.add(camera);
 placeRig(capsule.rig, state.seat);
@@ -126,6 +126,7 @@ const app = {
   // Buttons and actions: a zone id, 'door' (go out), 'enter' (back in), 'home', 'again'.
   press(id) {
     if (id === 'again') return app.restart();
+    if (id === 'labPrev' || id === 'labNext') return capsule.panels.labStep(id === 'labNext' ? 1 : -1);
     if (id === 'door') { if (!state.outside && timeline.doorOpen(Math.max(clock.t, 0))) fadeThen(() => setOutside(true)); return; }
     if (id === 'enter') { if (state.outside) fadeThen(() => setOutside(false)); return; }
     if (state.outside) return;
@@ -167,6 +168,22 @@ function sounds(tau, st) {
   }
   lastTau = tau; lastClip = timeline.clipId;
   audio.setLevels({ hum: clock.playing ? 1 : 0.3, outside: 1 - st.mist, jump: st.jumping ? st.jumpProgress : 0 });
+}
+
+// What the scanned traces reveal on the map: sharper for traces pointing here, lines for traces pointing out.
+const hereTotal = Object.values(data.items).filter((it) => it.trace === 'her').length;
+let cluesKey = '', clues = { sharp: 0, links: [] };
+function mapClues() {
+  const ids = [...scanner.collected], key = ids.join();
+  if (key !== cluesKey) {
+    cluesKey = key;
+    const items = ids.map((id) => data.items[id]).filter(Boolean);
+    clues = {
+      sharp: hereTotal ? items.filter((it) => it.trace === 'her').length / hereTotal : 1,
+      links: items.filter((it) => it.trace === 'ud' && it.link).map((it) => it.link),
+    };
+  }
+  return clues;
 }
 
 // Zone choice and actions on the panel.
@@ -239,7 +256,7 @@ renderer.setAnimationLoop((now, frame) => {
   capsule.panels.draw({
     caption: st.caption, buttons: buttons(st), debug: state.debug ? perf.summary() : '', t: st.w + tau,
     status: { year: st.year, place, jumping: st.jumping, jumpProgress: st.jumpProgress },
-    map: { x: st.x, z: st.z, yaw: st.yaw },
+    map: { x: st.x, z: st.z, yaw: st.yaw, clues: mapClues() },
     scanned: [...scanner.collected], data,
   });
   if (state.outside && state.debug) capsule.returnPanel.userData.draw(perf.summary());

@@ -70,7 +70,7 @@ export function buildScanner(scene, scannables) {
   const collected = new Set();   // arrived in the scanner (shown in the lab)
   const hits = scannables.map((s) => s.hit);
   const raycaster = new THREE.Raycaster();
-  raycaster.far = 12;
+  raycaster.far = 16;
   const tool = buildTool();
   tool.visible = false;
 

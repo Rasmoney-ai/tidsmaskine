@@ -6,7 +6,7 @@ import { HOME_YEAR, COUNTDOWN } from './config.js';
 // Zones on the site. capsule: where the capsule stands (world x/z, yaw so its door faces the zone).
 // base: world-time offset for small ambient motion (smoke, fire). zones: scene groups to show.
 export const ZONES = {
-  A: { name: 'Landsbyen', base: 1000, capsule: { x: -86.5, z: 18, yaw: 0 }, zones: ['village'] },
+  A: { name: 'Landsbyen', base: 1000, capsule: { x: -97.5, z: 17.6, yaw: 0 }, zones: ['village'] },
   B: { name: 'Gravhøjene', base: 2000, capsule: { x: -27, z: 25.8, yaw: Math.PI }, zones: ['mounds', 'stone'] },
   C: { name: 'Runestenen', base: 3000, capsule: { x: -5.24, z: -8.76, yaw: -Math.PI / 4 }, zones: ['stone', 'mounds'] },
   D: { name: 'Palisaden', base: 4000, capsule: { x: -37.8, z: 17, yaw: Math.PI / 2 }, zones: ['village', 'mounds'] },
