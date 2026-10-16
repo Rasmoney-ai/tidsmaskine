@@ -39,7 +39,10 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 
 ## 3D-modeller
 
-- Bestillingslisten står i `MODELLER.md`: GLB, ét mesh og ét materiale pr. model, figurer i T-pose med Mixamo-skelet. Til at indlæse dem skal three.js' GLTFLoader (r170) lægges i `vendor/` (spørg først).
+- Bestillingslisten står i `MODELLER.md`: GLB, ét mesh og ét materiale pr. model, figurer i T-pose med Mixamo-skelet.
+- Færdige modeller ligger i `models/` og indlæses af `src/models.js` (GLTFLoader r170 i `vendor/`). Mangler en fil, bruges pladsholderen fra koden.
+- Figurer animeres i koden ved at dreje knoglerne (`aimBone`). Flere kopier af samme figur kræver SkeletonUtils (spørg først).
+- Test: `?mute=1` slår lyden fra, og `app.inspect = [x, y, z, tx, ty, tz]` i konsollen giver et frit kamera til at se på modeller.
 
 ## Idéer til senere
 

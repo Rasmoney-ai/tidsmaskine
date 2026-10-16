@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { Builder, G, MAT, rng, paint, canvasTexture, outline, thickOutline } from './toon.js';
 import { groundHeight } from './world.js';
 import { makePerson, makeSheep, makeDog, tool, walkPose, standPose } from './people.js';
-import { staticShadows } from './shadows.js';
+import { staticShadows, blob } from './shadows.js';
+import { riggedCharacter, mergedProp, aimBone, restPosition } from './models.js';
 
 const smooth = (x) => { x = Math.min(Math.max(x, 0), 1); return x * x * (3 - 2 * x); };
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -463,7 +464,7 @@ function props() {
   return mesh;
 }
 
-export function buildJelling(scene, timeline) {
+export function buildJelling(scene, timeline, models = {}) {
   const group = new THREE.Group();
   const actors = [];
   const shadows = [];
@@ -502,23 +503,60 @@ export function buildJelling(scene, timeline) {
     weaver.armL.rotation.z = -0.3 + 0.3 * k; weaver.armR.rotation.z = 0.3 + 0.3 * k;
   } });
 
-  // Man chopping wood (strike every 2.4 s).
-  const chopper = makePerson({ tunic: 0x9c4a32, pants: 0x4d4436, hair: 0x6b4423, beard: 0x6b4423, seed: 5 });
-  chopper.armR.hand.add(tool('axe'));
-  add(place(chopper.root, -104.4, 28.4, Math.PI / 2 + 0.2));
-  const CHOP = 2.4;
-  act({ update(t) {
-    standPose(chopper, t, 1);
-    chopper.head.rotation.y = 0;
+  // Man chopping wood (strike every 2.4 s). Uses the Claude Design model (B14 + axe) when loaded.
+  const CHOP = 2.4, chopX = -104.4, chopZ = 28.4, chopYaw = Math.PI / 2 + 0.2;
+  // Phase of the chop: 0 = axe down in the log, 1 = raised over the shoulder.
+  const chopLift = (t) => {
     const p = (t % CHOP) / CHOP;
-    let a;
-    if (p < 0.55) a = -0.4 - 2.4 * smooth(p / 0.55);       // raise
-    else if (p < 0.66) a = -2.8 + 2.6 * smooth((p - 0.55) / 0.11); // strike
-    else a = -0.2 - 0.2 * smooth((p - 0.66) / 0.34);
-    chopper.armR.rotation.x = a; chopper.armL.rotation.x = a + 0.1;
-    chopper.armR.rotation.z = 0.15; chopper.armL.rotation.z = -0.15;
-    chopper.body.rotation.x = p > 0.55 && p < 0.75 ? 0.25 : 0.05;
-  } });
+    if (p < 0.55) return smooth(p / 0.55);
+    if (p < 0.66) return 1 - smooth((p - 0.55) / 0.11);
+    return 0.08 * smooth((p - 0.66) / 0.34);
+  };
+  const logGeo = new Builder(306);
+  logGeo.add(G.cyl(0.3, 0.33, 0.5, 9), 0x7a5532, { pos: [0, 0.25, 0], vary: 0.06 });
+  logGeo.add(G.cyl(0.29, 0.29, 0.02, 9), 0xc9a26e, { pos: [0, 0.505, 0] });
+  if (models.man) {
+    const man = riggedCharacter(models.man), B = man.bones;
+    if (models.axe) { const axe = mergedProp(models.axe); axe.position.set(-0.06, 0, 0); B.RightHand.add(axe); }
+    const restR = restPosition(B.RightHand, man.root).sub(restPosition(B.RightArm, man.root)).normalize();
+    const restL = restPosition(B.LeftHand, man.root).sub(restPosition(B.LeftArm, man.root)).normalize();
+    const shR = restPosition(B.RightArm, man.root), shL = restPosition(B.LeftArm, man.root);
+    man.root.add(blob(0.9));
+    const log = logGeo.mesh(); log.position.set(0, 0, 0.78); man.root.add(log);
+    add(place(man.root, chopX, chopZ, chopYaw));
+    const Z = new THREE.Vector3(0, 0, 1), Y = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3();
+    const lowHand = new THREE.Vector3(0, 0.9, 0.5), upHand = new THREE.Vector3(0, 1.98, -0.08);
+    const lowAxe = new THREE.Vector3(0, -0.82, 0.57), upAxe = new THREE.Vector3(0, -0.25, -1);
+    const hand = new THREE.Vector3(), handL = new THREE.Vector3(), axeDir = new THREE.Vector3(), d = new THREE.Vector3();
+    B.LeftUpLeg.rotation.z = 0.1; B.RightUpLeg.rotation.z = -0.1;
+    act({ update(t) {
+      const k = chopLift(t);
+      hand.lerpVectors(lowHand, upHand, k);
+      axeDir.lerpVectors(lowAxe, upAxe, k).normalize();
+      handL.copy(hand).addScaledVector(axeDir, -0.13);
+      B.Spine1.rotation.x = 0.22 * (1 - k) - 0.04;
+      B.Head.rotation.x = 0.18 * (1 - k);
+      // Arms point at the grip; the arm twist reference stays stable (side vector + a bit of forward).
+      d.subVectors(hand, shR).normalize();
+      aimBone(B.RightArm, man.root, restR, Z, d, ref.crossVectors(Y, d).addScaledVector(Z, 0.3));
+      // The wrist turns so the axe handle points along axeDir.
+      aimBone(B.RightHand, man.root, Z, restR, axeDir, d);
+      d.subVectors(handL, shL).normalize();
+      aimBone(B.LeftArm, man.root, restL, Z, d, ref.crossVectors(d, Y).addScaledVector(Z, 0.3));
+    } });
+  } else {
+    const chopper = makePerson({ tunic: 0x9c4a32, pants: 0x4d4436, hair: 0x6b4423, beard: 0x6b4423, seed: 5 });
+    chopper.armR.hand.add(tool('axe'));
+    add(place(chopper.root, chopX, chopZ, chopYaw));
+    act({ update(t) {
+      standPose(chopper, t, 1);
+      chopper.head.rotation.y = 0;
+      const a = -0.3 - 2.5 * chopLift(t);
+      chopper.armR.rotation.x = a; chopper.armL.rotation.x = a + 0.1;
+      chopper.armR.rotation.z = 0.15; chopper.armL.rotation.z = -0.15;
+      chopper.body.rotation.x = chopLift(t) < 0.2 ? 0.25 : 0.05;
+    } });
+  }
   emit({ name: 'chop', period: CHOP, offset: CHOP * 0.66, x: -104, z: 29 });
 
   // Two children playing tag.

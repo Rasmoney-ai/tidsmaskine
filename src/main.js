@@ -10,6 +10,7 @@ import { Audio } from './audio.js';
 import { initUI } from './ui.js';
 import { buildLife } from './life.js';
 import { Perf } from './perf.js';
+import { loadModels } from './models.js';
 
 const params = new URLSearchParams(location.search);
 const state = {
@@ -35,7 +36,8 @@ const timeline = new Timeline();
 console.info('Trip check', timeline.report());
 
 const world = buildWorld(scene, occupied);
-const jelling = buildJelling(scene, timeline);
+const models = await loadModels();
+const jelling = buildJelling(scene, timeline, models);
 const life = buildLife(jelling.group, timeline);
 const capsule = buildCapsule();
 scene.add(capsule.vehicle);
@@ -191,7 +193,13 @@ renderer.setAnimationLoop((now) => {
   capsule.tablets.draw(st.caption, buttons(), state.debug ? perf.summary() : '');
   capsule.animateCore(st.w + tau, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
 
-  if (!renderer.xr.isPresenting) {
+  if (app.inspect) {
+    // Developer view (app.inspect = [x, y, z, tx, ty, tz]): free camera in the world to look at models.
+    if (camera.parent !== scene) scene.add(camera);
+    const [x, y, z, tx, ty, tz] = app.inspect;
+    camera.position.set(x, y, z); camera.lookAt(tx, ty, tz);
+  } else if (!renderer.xr.isPresenting) {
+    if (camera.parent !== capsule.rig) capsule.rig.add(camera);
     camera.position.set(0, CAPSULE.DESKTOP_EYE, 0);
     camera.rotation.set(look.pitch, look.yaw, 0, 'YXZ');
   }

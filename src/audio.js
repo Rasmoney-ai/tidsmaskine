@@ -4,6 +4,7 @@ export class Audio {
 
   // Must be called from a user gesture.
   start() {
+    if (new URLSearchParams(location.search).get('mute') === '1') return; // silent mode for testing
     if (this.ctx) { this.ctx.resume(); return; }
     const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(ctx.destination);
@@ -35,7 +36,7 @@ export class Audio {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     this.hum.gain.setTargetAtTime(0.09 * hum, now, 0.2);
-    this.wind.gain.setTargetAtTime(0.05 * outside, now, 0.3);
+    this.wind.gain.setTargetAtTime(0.022 * outside, now, 0.3);
     const j = Math.sin(Math.PI * Math.min(Math.max(jump, 0), 1));
     this.whoosh.gain.setTargetAtTime(0.22 * j, now, 0.15);
     this.whooshF.frequency.setTargetAtTime(250 + 1800 * j, now, 0.2);
