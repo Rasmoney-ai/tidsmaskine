@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../vendor/three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from '../vendor/three/addons/utils/BufferGeometryUtils.js';
+import { clone as cloneSkinned } from '../vendor/three/addons/utils/SkeletonUtils.js';
 import { MAT, toonMap } from './toon.js';
 
 // Keys used in the code -> file in models/. Ids match MODELLER.md.
@@ -87,9 +88,9 @@ export function parts(gltf) {
 // --- Rigged characters ---------------------------------------------------
 
 // One skinned mesh. Returns the scene root and bones by name.
-// Note: each GLB is used once; several copies of the same rigged figure would need SkeletonUtils.clone.
-export function riggedCharacter(gltf) {
-  const root = gltf.scene;
+// copy = true makes an independent copy (own skeleton), so the same figure can be used several times.
+export function riggedCharacter(gltf, copy = false) {
+  const root = copy ? cloneSkinned(gltf.scene) : gltf.scene;
   let mesh = null;
   root.traverse((o) => {
     if (!o.isSkinnedMesh) return;
@@ -140,8 +141,8 @@ const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new TH
 
 // Humanoid helper for Mixamo-named figures: arms, hands, legs and head in plain terms.
 export class Humanoid {
-  constructor(gltf) {
-    const { root, mesh, bones } = riggedCharacter(gltf);
+  constructor(gltf, copy = false) {
+    const { root, mesh, bones } = riggedCharacter(gltf, copy);
     this.root = root; this.mesh = mesh; this.B = bones;
     const rp = (n) => restPosition(bones[n], root);
     this.rest = {
@@ -210,8 +211,8 @@ export class Humanoid {
 }
 
 // Four-legged animals (dog, ox, sheep): same simple skeleton names.
-export function quadruped(gltf) {
-  const { root, mesh, bones: B } = riggedCharacter(gltf);
+export function quadruped(gltf, copy = false) {
+  const { root, mesh, bones: B } = riggedCharacter(gltf, copy);
   return {
     root, mesh, B,
     legs: [B.FL_Upper, B.FR_Upper, B.HL_Upper, B.HR_Upper],

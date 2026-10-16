@@ -642,7 +642,19 @@ export function buildJelling(scene, timeline, models = {}) {
   // Sheep in the pen (static models, one draw call).
   const sheepSpots = [];
   for (let i = 0; i < 5; i++) { const x = -122 + (r() - 0.5) * 8, z = 2 + (r() - 0.5) * 8; sheepSpots.push({ x, z, y: gy(x, z), yaw: r() * 6.28 }); }
-  if (M.b12_faar) add(instanced(M.b12_faar, sheepSpots));
+  if (M.b12_faar) sheepSpots.forEach((p, i) => {
+    // Each sheep is its own copy with a skeleton: grazing, looking up, flicking the tail.
+    const sh = quadruped(M.b12_faar, true);
+    sh.root.add(blob(1.0));
+    add(place(sh.root, p.x, p.z, p.yaw));
+    act({ update(t) {
+      const g = 0.5 + 0.5 * Math.sin(t * 0.25 + i * 2.1);         // 1 = head down grazing
+      sh.neck.rotation.x = 0.55 * smooth(g * 1.4 - 0.2);
+      sh.head.rotation.set(0.25 * g, 0.3 * Math.sin(t * 0.37 + i), 0);
+      sh.jaw.rotation.x = g > 0.7 ? 0.08 * Math.max(0, Math.sin(t * 6 + i)) : 0;
+      sh.tail.rotation.y = 0.35 * Math.sin(t * 2.3 + i) * (Math.sin(t * 0.5 + i) > 0.6 ? 1 : 0.2);
+    } });
+  });
   else sheepSpots.forEach((p, i) => {
     const sh = makeSheep(400 + i); sh.root.name = 'B12_faar_' + (i + 1);
     add(place(sh.root, p.x, p.z, p.yaw));
