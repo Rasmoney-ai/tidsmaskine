@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import { Builder, G, MAT, canvasTexture, wrapText } from './toon.js';
 import { CAPSULE, seatPosition, WORLD } from './config.js';
 
-MAT.cabin.side = THREE.DoubleSide;
+// The capsule's own materials: when seen from outside they are masked to the round door (stencil).
+const CAB = MAT.cabin.clone(); CAB.side = THREE.DoubleSide;
+const GLO = MAT.glow.clone();
 
 // Villeneuve palette: dark graphite, matte concrete, thin cool light lines, a few warm amber accents.
 const GRAPHITE = 0x262b32, CONCRETE = 0x48505a, DARK = 0x171a1e, FLOOR = 0x2b3038, SEAM = 0x3a414b;
@@ -34,7 +36,7 @@ function ring(b, r, y, h, thick, color) {
 
 // The door: in the front side (side 3, facing -z). W = opening width, TOP = top of the opening.
 const DOOR_SIDE = 3;
-const DOOR = { W: 1.15, H: 2.2, TOP: CAPSULE.SILL + 2.2 - 0.25 };
+const DOOR = { R: 1.0, CY: 1.38 };   // radius and center height of the round opening
 
 // Sides with a screen panel (index k of sideMid). Side 3 is the front (-z) and stays free for the view.
 export const PANEL_SIDES = { 2: 'guide', 4: 'guide', 1: 'map', 5: 'status', 0: 'lab', 6: 'lab', 7: 'guide' };
@@ -74,7 +76,7 @@ function cabinShell() {
     b.add(G.box(0.86, 0.8, 0.12), GRAPHITE, { pos: [d * sx + 0.1 * sx, 0.4, d * sz + 0.1 * sz], rot: [0, a, 0] });
     b.add(G.box(1.0, 0.58, 0.05), DARK, { pos: [d * sx, 1.0, d * sz], rot: [-0.6, a + Math.PI, 0, 'YXZ'] });
   }
-  const shell = b.mesh(MAT.cabin);
+  const shell = b.mesh(CAB);
 
   // Light lines: under the top beam, in the floor gap, mullion slots, oculus ring.
   const g = new Builder(901);
@@ -89,7 +91,7 @@ function cabinShell() {
     const a = sideMid(k), d = R * APO - 0.36;
     g.add(G.box(0.7, 0.012, 0.012), AMBER, { pos: [d * Math.sin(a), 0.62, d * Math.cos(a)], rot: [0, a, 0] });
   }
-  const glow = g.mesh(MAT.glow);
+  const glow = g.mesh(GLO);
 
   // Glass: very faint tint, floor to beam.
   const gl = new Builder(903);
@@ -97,10 +99,11 @@ function cabinShell() {
     const a = sideMid(k), d = R * APO - 0.03;
     const cx = d * Math.sin(a), cz = d * Math.cos(a), tx = Math.cos(a), tz = -Math.sin(a);   // side center and tangent
     if (k !== DOOR_SIDE) { gl.add(new THREE.PlaneGeometry(R * SIDE, TOP - SILL), 0xbfe0ea, { pos: [cx, (TOP + SILL) / 2, cz], rot: [0, a, 0] }); continue; }
-    // Front side: glass beside and above the door opening, none in the opening itself.
-    const gap = DOOR.W + 0.09, side = (R * SIDE - gap) / 2, top = DOOR.TOP;
-    for (const s of [-1, 1]) { const o = s * (gap + side) / 2; gl.add(new THREE.PlaneGeometry(side, TOP - SILL), 0xbfe0ea, { pos: [cx + tx * o, (TOP + SILL) / 2, cz + tz * o], rot: [0, a, 0] }); }
-    gl.add(new THREE.PlaneGeometry(gap, TOP - top), 0xbfe0ea, { pos: [cx, (TOP + top) / 2, cz], rot: [0, a, 0] });
+    // Front side: glass with a round hole for the door.
+    const w = R * SIDE, shape = new THREE.Shape();
+    shape.moveTo(-w / 2, SILL); shape.lineTo(w / 2, SILL); shape.lineTo(w / 2, TOP); shape.lineTo(-w / 2, TOP); shape.closePath();
+    const hole = new THREE.Path(); hole.absarc(0, DOOR.CY, DOOR.R + 0.05, 0, Math.PI * 2, true); shape.holes.push(hole);
+    gl.add(new THREE.ShapeGeometry(shape, 24), 0xbfe0ea, { pos: [cx, 0, cz], rot: [0, a, 0] });
   }
   gl.add(new THREE.CircleGeometry(rTop, 8), 0xbfe0ea, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
   const glass = new THREE.Mesh(gl.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.06, depthWrite: false, fog: false, side: THREE.DoubleSide }));
@@ -317,23 +320,32 @@ function panels(mapDrawer) {
   };
 }
 
-// The door in the front wall. It slides open when the capsule stands still in a zone.
+// The round door in the front wall: a time portal. It opens like an iris when the capsule stands still in a zone.
+// From outside, the inside of the capsule can only be seen through this circle (stencil mask).
 function door() {
-  const R = CAPSULE.RADIUS, zf = -R * APO, W = DOOR.W, H = DOOR.H;
+  const zf = -CAPSULE.RADIUS * APO, R = DOOR.R, CY = DOOR.CY;
   const group = new THREE.Group();
+  // Heavy dark ring, a thin light ring and small amber marks around it.
   const frame = new Builder(910);
-  for (const x of [-W / 2 - 0.03, W / 2 + 0.03]) frame.add(G.box(0.03, H, 0.03), LIGHT, { pos: [x, CAPSULE.SILL + H / 2 - 0.25, zf] });
-  frame.add(G.box(W + 0.09, 0.03, 0.03), LIGHT, { pos: [0, CAPSULE.SILL + H - 0.25, zf] });
-  const frameMesh = frame.mesh(MAT.glow);
-  frameMesh.material = MAT.glow;
-  // Sliding glass leaf with a thin light edge.
-  const leaf = new THREE.Mesh(new THREE.PlaneGeometry(W, H - 0.05), new THREE.MeshBasicMaterial({ color: 0xbfe0ea, transparent: true, opacity: 0.16, depthWrite: false, fog: false, side: THREE.DoubleSide }));
-  leaf.position.set(0, CAPSULE.SILL + H / 2 - 0.25, zf + 0.04);
-  leaf.renderOrder = 6;
+  frame.add(G.torus(R + 0.07, 0.07, 6, 48), 0x171a1e, { pos: [0, CY, zf] });
+  const frameMesh = frame.mesh(CAB.clone());   // own copies: the door frame stays visible outside
+  const light = new Builder(911);
+  light.add(G.torus(R + 0.005, 0.012, 3, 64), LIGHT, { pos: [0, CY, zf - 0.02] });
+  light.add(G.torus(R + 0.005, 0.012, 3, 64), LIGHT, { pos: [0, CY, zf + 0.02] });
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    light.add(G.box(0.012, 0.05, 0.01), AMBER, { pos: [Math.cos(a) * (R + 0.11), CY + Math.sin(a) * (R + 0.11), zf + 0.075], rot: [0, 0, a + Math.PI / 2] });
+    light.add(G.box(0.012, 0.05, 0.01), AMBER, { pos: [Math.cos(a) * (R + 0.11), CY + Math.sin(a) * (R + 0.11), zf - 0.075], rot: [0, 0, a + Math.PI / 2] });
+  }
+  const lightMesh = light.mesh(GLO.clone());
+  // Iris: a glass disc that shrinks into the ring when the door opens.
+  const iris = new THREE.Mesh(new THREE.CircleGeometry(R, 48), new THREE.MeshBasicMaterial({ color: 0xbfe0ea, transparent: true, opacity: 0.16, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+  iris.position.set(0, CY, zf + 0.01);
+  iris.renderOrder = 6;
   // Sign above the door.
   const { ctx, tex } = canvasTexture(512, 96);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.116), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false, transparent: true }));
-  sign.position.set(0, CAPSULE.SILL + H - 0.08, zf + 0.06);
+  sign.position.set(0, CY + R + 0.2, zf + 0.06);
   let lastSign = null;
   const drawSign = (open) => {
     if (open === lastSign) return; lastSign = open;
@@ -345,12 +357,20 @@ function door() {
   };
   drawSign(false);
   // Invisible hit area: click or point at the door to go out.
-  const hit = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
-  hit.position.copy(leaf.position);
-  group.add(frameMesh, leaf, sign, hit);
+  const hit = new THREE.Mesh(new THREE.CircleGeometry(R, 32), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  hit.position.set(0, CY, zf);
+  // Stencil mask: marks the circle on screen, so the inside only shows through the door when seen from outside.
+  const mask = new THREE.Mesh(new THREE.CircleGeometry(R, 48), new THREE.MeshBasicMaterial({
+    colorWrite: false, depthWrite: false, side: THREE.DoubleSide, fog: false,
+    stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp,
+  }));
+  mask.position.set(0, CY, zf - 0.03);
+  mask.renderOrder = -100;
+  mask.visible = false;
+  group.add(frameMesh, lightMesh, iris, sign, hit, mask);
   return {
-    group, hit, frame: frameMesh,
-    setOpen(k) { leaf.position.x = k * (W + 0.05); leaf.material.opacity = 0.16 * (1 - 0.5 * k); drawSign(k > 0.5); },
+    group, hit, mask,
+    setOpen(k) { iris.scale.setScalar(Math.max(1 - k, 0.001)); iris.visible = k < 0.99; drawSign(k > 0.5); },
   };
 }
 
@@ -363,8 +383,8 @@ function returnPanel() {
   drawButtons(ctx, [{ label: '↩ Tilbage til kapslen', state: 'go', x: 40, y: 180, w: 688, h: 96, font: 34 }]);
   tex.needsUpdate = true;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.3), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
-  m.position.set(0.95, 1.25, -CAPSULE.RADIUS * APO - 0.08);
-  m.rotation.set(0.25, Math.PI, 0, 'YXZ');
+  m.position.set(1.45, 1.1, -CAPSULE.RADIUS * APO - 0.35);
+  m.rotation.set(0.25, Math.PI + 0.45, 0, 'YXZ');
   m.visible = false;
   return m;
 }
@@ -385,10 +405,20 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   const rig = new THREE.Group();
   vehicle.add(rig);
   const base = new THREE.Color(LIGHT), hot = new THREE.Color(0xffffff);
+  const interiorMats = new Set();
+  interior.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => interiorMats.add(m)); });
   return {
     vehicle, rig, mist, panels: screens, door: d, returnPanel: back,
-    // Outside, only the door frame and the way-back panel remain visible.
-    setOutside(on) { interior.visible = !on; back.visible = on; },
+    // Outside, the capsule is in stealth: the inside shows only through the round door.
+    setOutside(on) {
+      back.visible = on;
+      d.mask.visible = on;
+      for (const m of interiorMats) {
+        m.stencilWrite = on; m.stencilRef = 1;
+        m.stencilFunc = on ? THREE.EqualStencilFunc : THREE.AlwaysStencilFunc;
+        m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp;
+      }
+    },
     animateCore(t, speedUp) {
       core.top.scale.setScalar(1 + speedUp * 0.08 * Math.sin(t * 3));
       core.mat.color.copy(base).lerp(hot, speedUp).multiplyScalar(1 + speedUp * 1.5);

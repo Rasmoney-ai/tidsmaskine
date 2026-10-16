@@ -19,7 +19,7 @@ const state = {
   outside: false,
 };
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.NeutralToneMapping;
@@ -45,6 +45,8 @@ capsule.rig.add(camera);
 placeRig(capsule.rig, state.seat);
 const hands = buildHands(renderer, capsule.rig);
 const scanner = buildScanner(scene, jelling.scannables);
+// Desktop: the scanner sits in the lower right of the view (only outside). VR: it follows the hand/controller.
+const TOOL_DESKTOP = { pos: new THREE.Vector3(0.2, -0.2, -0.42), rot: new THREE.Euler(0.12, -0.18, 0.05) };
 const clock = new LocalClock(-COUNTDOWN);
 const audio = new Audio();
 const perf = new Perf(renderer, world);
@@ -109,6 +111,7 @@ function xrRay(source, frame, out = {}) {
   _m.fromArray(pose.transform.matrix).premultiply(capsule.rig.matrixWorld);
   out.origin = (out.origin || new THREE.Vector3()).setFromMatrixPosition(_m);
   out.dir = (out.dir || new THREE.Vector3()).set(0, 0, -1).transformDirection(_m);
+  out.matrix = (out.matrix || new THREE.Matrix4()).copy(_m);
   return out;
 }
 function xrSelect(e) { capsule.rig.updateMatrixWorld(); const r = xrRay(e.inputSource, e.frame); if (r) pressRay(r.origin, r.dir); }
@@ -237,7 +240,7 @@ renderer.setAnimationLoop((now, frame) => {
     caption: st.caption, buttons: buttons(st), debug: state.debug ? perf.summary() : '', t: st.w + tau,
     status: { year: st.year, place, jumping: st.jumping, jumpProgress: st.jumpProgress },
     map: { x: st.x, z: st.z, yaw: st.yaw },
-    scanned: [...scanner.scanned], data,
+    scanned: [...scanner.collected], data,
   });
   capsule.animateCore(st.w + tau, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
 
@@ -252,14 +255,21 @@ renderer.setAnimationLoop((now, frame) => {
     camera.rotation.set(look.pitch, look.yaw, 0, 'YXZ');
   }
 
-  // Scanner beams from the hands/controllers in VR.
-  const active = [];
+  // Scanner beams from the hands/controllers in VR; the scanner is held in the right hand (or the only one).
+  const active = [], tool = scanner.tool;
   if (renderer.xr.isPresenting && frame) {
     capsule.rig.updateMatrixWorld();
+    const sources = [...renderer.xr.getSession().inputSources].sort((a, b) => (b.handedness === 'right') - (a.handedness === 'right'));
     let i = 0;
-    for (const source of renderer.xr.getSession().inputSources) if (i < 2 && xrRay(source, frame, rays[i])) active.push(rays[i++]);
+    for (const source of sources) if (i < 2 && xrRay(source, frame, rays[i])) active.push(rays[i++]);
+    if (tool.parent !== scene) scene.add(tool);
+    tool.visible = active.length > 0;
+    if (tool.visible) { tool.matrixAutoUpdate = false; tool.matrix.copy(active[0].matrix); tool.matrixWorldNeedsUpdate = true; }
+  } else {
+    if (tool.parent !== camera) { camera.add(tool); tool.matrixAutoUpdate = true; tool.position.copy(TOOL_DESKTOP.pos); tool.rotation.copy(TOOL_DESKTOP.rot); }
+    tool.visible = state.outside && !app.inspect;
   }
-  scanner.update(st.w + tau, dt, active, renderer.xr.isPresenting);
+  scanner.update(st.w + tau, dt, active, renderer.xr.isPresenting, camera);
 
   // Door fade: out, act, in.
   if (transition) {
