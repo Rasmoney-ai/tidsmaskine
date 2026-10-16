@@ -33,7 +33,7 @@ function ring(b, r, y, h, thick, color) {
 }
 
 // Sides with a screen panel (index k of sideMid). Side 3 is the front (-z) and stays free for the view.
-export const PANEL_SIDES = { 2: 'guide', 4: 'guide', 1: 'map', 5: 'status', 0: 'archive', 6: 'archive', 7: 'guide' };
+export const PANEL_SIDES = { 2: 'guide', 4: 'guide', 1: 'map', 5: 'status', 0: 'lab', 6: 'lab', 7: 'guide' };
 
 function cabinShell() {
   const { RADIUS: R, SILL, WALL_TOP: TOP, DOME_TOP } = CAPSULE;
@@ -147,8 +147,8 @@ function mistShell() {
   return m;
 }
 
-// Screen panels along the windows. Content types: guide (captions + place buttons), map, status, archive.
-const SW = 1024, SH = 568, BTN_Y = 440, BTN_H = 96;
+// Screen panels along the windows. Content types: guide (zone choice), map, status, lab.
+const SW = 1024, SH = 568, BTN_H = 82;
 const FONT = 'system-ui, "Segoe UI", sans-serif';
 
 function letterSpaced(ctx, text, x, y, spacing) {
@@ -156,12 +156,36 @@ function letterSpaced(ctx, text, x, y, spacing) {
   return x;
 }
 
-function screenBase(ctx, label) {
-  ctx.fillStyle = '#0d1013'; ctx.fillRect(0, 0, SW, SH);
-  ctx.strokeStyle = 'rgba(223,240,242,0.18)'; ctx.lineWidth = 2; ctx.strokeRect(14, 14, SW - 28, SH - 28);
+function screenBase(ctx, label, w = SW, h = SH) {
+  ctx.fillStyle = '#0d1013'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(223,240,242,0.18)'; ctx.lineWidth = 2; ctx.strokeRect(14, 14, w - 28, h - 28);
   ctx.fillStyle = '#ffb36b'; ctx.font = `600 22px ${FONT}`; ctx.textBaseline = 'middle';
   letterSpaced(ctx, label, 40, 46, 5);
   ctx.textBaseline = 'alphabetic';
+}
+
+function drawButtons(ctx, rects) {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const b of rects) {
+    ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 6);
+    if (b.state === 'here' || b.state === 'go') { ctx.fillStyle = '#ffb36b'; ctx.fill(); }
+    else { ctx.strokeStyle = b.state === 'off' ? 'rgba(223,240,242,0.15)' : b.state === 'seen' ? 'rgba(223,240,242,0.45)' : '#dff0f2'; ctx.lineWidth = 3; ctx.stroke(); }
+    ctx.fillStyle = b.state === 'here' || b.state === 'go' ? '#0d1013' : b.state === 'off' ? 'rgba(223,240,242,0.25)' : '#f2f6f7';
+    ctx.font = `600 ${b.font || 26}px ${FONT}`;
+    ctx.fillText((b.state === 'seen' ? '✓ ' : '') + b.label.toUpperCase(), b.x + b.w / 2, b.y + b.h / 2);
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+// A small drawing of a scanned object for the lab screen.
+function drawItemIcon(ctx, id, x, y, r) {
+  ctx.save(); ctx.translate(x, y);
+  if (id === 'soelvmoent') {
+    ctx.fillStyle = '#c9ccd0'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#8d9196'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r * 0.86, 0, 7); ctx.stroke();
+    ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-r * 0.45, -r * 0.25 + k * r * 0.25); ctx.bezierCurveTo(-r * 0.15, -r * 0.38 + k * r * 0.25, r * 0.1, -r * 0.1 + k * r * 0.25, r * 0.45, -r * 0.3 + k * r * 0.25); ctx.stroke(); }
+  } else { ctx.strokeStyle = '#dff0f2'; ctx.lineWidth = 3; ctx.strokeRect(-r, -r, 2 * r, 2 * r); }
+  ctx.restore();
 }
 
 function panels(mapDrawer) {
@@ -170,7 +194,7 @@ function panels(mapDrawer) {
     const { ctx, tex } = canvasTexture(SW, SH);
     return { ctx, tex, mat: new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }), last: '' };
   };
-  const screens = { guide: make(), map: make(), status: make(), archive: make() };
+  const screens = { guide: make(), map: make(), status: make(), lab: make() };
   const group = new THREE.Group();
   const meshes = [];
   const R = CAPSULE.RADIUS;
@@ -185,46 +209,41 @@ function panels(mapDrawer) {
   }
   let rects = [];
 
+  // Zone choice: title, short text, a row of zones and a row of actions (go out, travel home).
   function drawGuide(caption, buttons, debugLine) {
     const s = screens.guide, ctx = s.ctx;
     const key = caption.key + '|' + buttons.map((b) => b.id + b.state).join() + '|' + debugLine;
     if (key === s.last) return; s.last = key;
-    screenBase(ctx, 'TIDSMASKINEN · GUIDE');
+    screenBase(ctx, 'TIDSMASKINEN · ZONEVALG');
     if (debugLine) { ctx.fillStyle = '#7fb8b4'; ctx.font = `20px ui-monospace, Consolas, monospace`; ctx.textAlign = 'right'; ctx.fillText(debugLine, SW - 40, 54); ctx.textAlign = 'left'; }
-    const alarm = caption.title.startsWith('!');
-    ctx.fillStyle = alarm ? '#ffb36b' : '#f2f6f7'; ctx.font = `300 54px ${FONT}`;
-    ctx.fillText(caption.title.replace(/!/g, '').trim().toUpperCase(), 40, 130);
-    ctx.fillStyle = '#b9c4c7'; ctx.font = `34px ${FONT}`;
-    wrapText(ctx, caption.body, 40, 186, SW - 80, 44);
-    const n = buttons.length, gap = 14, w = (SW - 80 - gap * (n - 1)) / n;
-    rects = buttons.map((b, i) => ({ ...b, x: 40 + i * (w + gap), y: BTN_Y, w, h: BTN_H }));
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (const b of rects) {
-      ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 6);
-      if (b.state === 'here') { ctx.fillStyle = '#ffb36b'; ctx.fill(); }
-      else { ctx.strokeStyle = b.state === 'off' ? 'rgba(223,240,242,0.15)' : b.state === 'seen' ? 'rgba(223,240,242,0.45)' : '#dff0f2'; ctx.lineWidth = 3; ctx.stroke(); }
-      ctx.fillStyle = b.state === 'here' ? '#0d1013' : b.state === 'off' ? 'rgba(223,240,242,0.25)' : '#f2f6f7';
-      ctx.font = `600 ${n > 2 ? 26 : 34}px ${FONT}`;
-      ctx.fillText((b.state === 'seen' ? '✓ ' : '') + b.label.toUpperCase(), b.x + b.w / 2, b.y + b.h / 2);
-    }
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#f2f6f7'; ctx.font = `300 50px ${FONT}`;
+    ctx.fillText(caption.title.toUpperCase(), 40, 124);
+    ctx.fillStyle = '#b9c4c7'; ctx.font = `30px ${FONT}`;
+    wrapText(ctx, caption.body, 40, 174, SW - 80, 40);
+    const rows = [buttons.filter((b) => b.row === 0), buttons.filter((b) => b.row === 1)];
+    rects = [];
+    rows.forEach((row, ri) => {
+      const n = row.length, gap = 14, w = (SW - 80 - gap * (n - 1)) / Math.max(n, 1);
+      row.forEach((b, i) => rects.push({ ...b, x: 40 + i * (w + gap), y: ri ? 452 : 356, w, h: BTN_H, font: ri ? 30 : 26 }));
+    });
+    drawButtons(ctx, rects);
     s.tex.needsUpdate = true;
   }
 
-  function drawStatus({ year, place, alarm, jumping, jumpProgress }, t) {
+  function drawStatus({ year, place, jumping, jumpProgress }, t) {
     const s = screens.status, ctx = s.ctx;
-    const pulse = alarm ? (Math.sin(t * Math.PI * 1.6) > 0 ? 1 : 0) : 0;
-    const key = `${year}|${place}|${alarm}|${pulse}|${jumping ? Math.round(jumpProgress * 40) : -1}`;
+    // Unknown year: question marks; during a jump the digits scramble.
+    const shown = year != null ? String(year) : jumping ? String(1000 + Math.floor(Math.abs(Math.sin(Math.floor(t * 12) * 12.9898) * 43758.5453) % 9000)) : '????';
+    const key = `${shown}|${place}|${jumping ? Math.round(jumpProgress * 40) : -1}`;
     if (key === s.last) return; s.last = key;
     screenBase(ctx, 'STATUS');
     ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'ÅR', 40, 120, 5);
-    ctx.fillStyle = '#f2f6f7'; ctx.font = `200 170px ${FONT}`; ctx.fillText(String(year), 34, 270);
+    ctx.fillStyle = year != null || jumping ? '#f2f6f7' : '#ffb36b'; ctx.font = `200 170px ${FONT}`; ctx.fillText(shown, 34, 270);
     ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'STED', 560, 120, 5);
     ctx.fillStyle = '#f2f6f7'; ctx.font = `300 52px ${FONT}`; ctx.fillText(place, 556, 180);
     ctx.fillStyle = '#7d8a8e'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, 'STEALTH', 560, 250, 5);
-    ctx.fillStyle = alarm ? (pulse ? '#ffb36b' : '#7a4f2a') : '#7fe0b8';
-    ctx.beginPath(); ctx.arc(574, 296, 12, 0, 7); ctx.fill();
-    ctx.font = `400 34px ${FONT}`; ctx.fillText(alarm ? 'OBSERVERET AF 1 HUND' : 'AKTIV', 600, 308);
+    ctx.fillStyle = '#7fe0b8'; ctx.beginPath(); ctx.arc(574, 296, 12, 0, 7); ctx.fill();
+    ctx.font = `400 34px ${FONT}`; ctx.fillText('AKTIV', 600, 308);
     if (jumping) {
       ctx.strokeStyle = 'rgba(223,240,242,0.3)'; ctx.lineWidth = 2; ctx.strokeRect(40, 420, SW - 80, 14);
       ctx.fillStyle = '#dff0f2'; ctx.fillRect(40, 420, (SW - 80) * jumpProgress, 14);
@@ -242,17 +261,32 @@ function panels(mapDrawer) {
     s.tex.needsUpdate = true;
   }
 
-  function drawArchive() {
-    const s = screens.archive, ctx = s.ctx;
-    if (s.last) return; s.last = 'done';
-    screenBase(ctx, 'ARKIV · BILLEDER FRA TIDEN');
-    ['Jellingstenen i dag', 'Fund fra vikingetiden', 'Højene fra luften'].forEach((label, i) => {
-      const x = 40 + i * 320, y = 90;
-      ctx.strokeStyle = 'rgba(223,240,242,0.25)'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 290, 300);
-      ctx.strokeStyle = 'rgba(223,240,242,0.1)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 290, y + 300); ctx.moveTo(x + 290, y); ctx.lineTo(x, y + 300); ctx.stroke();
-      ctx.fillStyle = '#b9c4c7'; ctx.font = `28px ${FONT}`; ctx.fillText(label, x, y + 345);
-    });
-    ctx.fillStyle = '#7d8a8e'; ctx.font = `italic 26px ${FONT}`; ctx.fillText('Kommer senere', 40, 520);
+  // Laboratory: the scanned objects and their analyses (from the data file).
+  function drawLab(scanned, data) {
+    const s = screens.lab, ctx = s.ctx;
+    const key = scanned.join();
+    if (key === s.last && s.drawn) return; s.last = key; s.drawn = true;
+    screenBase(ctx, 'LABORATORIUM · ANALYSER');
+    if (!scanned.length) {
+      ctx.fillStyle = '#7d8a8e'; ctx.font = `300 40px ${FONT}`;
+      ctx.fillText('Ingen scannede spor endnu.', 40, 150);
+      ctx.fillStyle = '#b9c4c7'; ctx.font = `30px ${FONT}`;
+      wrapText(ctx, 'Gå ud af kapslen, og peg med håndscanneren på et spor for at scanne det. Laboratoriet arbejder på en kopi – originalen bliver liggende.', 40, 210, SW - 80, 40);
+    } else {
+      // Newest first; room for two objects on the screen.
+      scanned.slice(-2).reverse().forEach((id, i) => {
+        const item = data.items[id] || { name: id, analyses: [] }, y = 100 + i * 220;
+        drawItemIcon(ctx, id, 110, y + 70, 60);
+        ctx.fillStyle = '#f2f6f7'; ctx.font = `300 42px ${FONT}`; ctx.fillText(item.name.toUpperCase(), 200, y + 40);
+        if (item.found) { ctx.fillStyle = '#7d8a8e'; ctx.font = `24px ${FONT}`; ctx.fillText(item.found, 200, y + 74); }
+        let yy = y + 118;
+        for (const a of item.analyses) {
+          ctx.fillStyle = '#ffb36b'; ctx.font = `600 22px ${FONT}`; letterSpaced(ctx, a.type.toUpperCase(), 200, yy, 4);
+          ctx.fillStyle = '#dfe7e9'; ctx.font = `30px ${FONT}`;
+          yy = wrapText(ctx, a.text, 200, yy + 38, SW - 240, 38) + 6;
+        }
+      });
+    }
     s.tex.needsUpdate = true;
   }
 
@@ -265,30 +299,87 @@ function panels(mapDrawer) {
       const r = rects.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h && b.state !== 'off' && b.state !== 'here');
       return r ? r.id : null;
     },
-    draw({ caption, buttons, debug, status, map, t }) {
+    draw({ caption, buttons, debug, status, map, t, scanned, data }) {
       drawGuide(caption, buttons, debug);
       drawStatus(status, t);
       drawMap(map.x, map.z, map.yaw);
-      drawArchive();
+      drawLab(scanned, data);
     },
   };
 }
 
+// The door in the front wall. It slides open when the capsule stands still in a zone.
+function door() {
+  const R = CAPSULE.RADIUS, zf = -R * APO, W = 1.15, H = 2.2;
+  const group = new THREE.Group();
+  const frame = new Builder(910);
+  for (const x of [-W / 2 - 0.03, W / 2 + 0.03]) frame.add(G.box(0.03, H, 0.03), LIGHT, { pos: [x, CAPSULE.SILL + H / 2 - 0.25, zf] });
+  frame.add(G.box(W + 0.09, 0.03, 0.03), LIGHT, { pos: [0, CAPSULE.SILL + H - 0.25, zf] });
+  const frameMesh = frame.mesh(MAT.glow);
+  frameMesh.material = MAT.glow;
+  // Sliding glass leaf with a thin light edge.
+  const leaf = new THREE.Mesh(new THREE.PlaneGeometry(W, H - 0.05), new THREE.MeshBasicMaterial({ color: 0xbfe0ea, transparent: true, opacity: 0.16, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+  leaf.position.set(0, CAPSULE.SILL + H / 2 - 0.25, zf + 0.04);
+  leaf.renderOrder = 6;
+  // Sign above the door.
+  const { ctx, tex } = canvasTexture(512, 96);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.116), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false, transparent: true }));
+  sign.position.set(0, CAPSULE.SILL + H - 0.08, zf + 0.06);
+  let lastSign = null;
+  const drawSign = (open) => {
+    if (open === lastSign) return; lastSign = open;
+    ctx.clearRect(0, 0, 512, 96);
+    ctx.fillStyle = 'rgba(13,16,19,0.85)'; ctx.fillRect(0, 0, 512, 96);
+    ctx.fillStyle = open ? '#ffb36b' : '#5d6669'; ctx.font = `600 44px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    letterSpaced(ctx, open ? 'UDGANG' : 'LUKKET', open ? 150 : 158, 50, 10);
+    tex.needsUpdate = true;
+  };
+  drawSign(false);
+  // Invisible hit area: click or point at the door to go out.
+  const hit = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  hit.position.copy(leaf.position);
+  group.add(frameMesh, leaf, sign, hit);
+  return {
+    group, hit, frame: frameMesh,
+    setOpen(k) { leaf.position.x = k * (W + 0.05); leaf.material.opacity = 0.16 * (1 - 0.5 * k); drawSign(k > 0.5); },
+  };
+}
+
+// Small panel by the door, seen when standing outside: the way back in.
+function returnPanel() {
+  const { ctx, tex } = canvasTexture(768, 320);
+  screenBase(ctx, 'TIDSMASKINEN', 768, 320);
+  ctx.fillStyle = '#b9c4c7'; ctx.font = `28px ${FONT}`;
+  wrapText(ctx, 'Peg på et spor, og tryk for at scanne det.', 40, 110, 690, 36);
+  drawButtons(ctx, [{ label: '↩ Tilbage til kapslen', state: 'go', x: 40, y: 180, w: 688, h: 96, font: 34 }]);
+  tex.needsUpdate = true;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.3), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
+  m.position.set(0.95, 1.25, -CAPSULE.RADIUS * APO - 0.08);
+  m.rotation.set(0.25, Math.PI, 0, 'YXZ');
+  m.visible = false;
+  return m;
+}
+
 export function buildCapsule({ mapDrawer = () => {} } = {}) {
   const vehicle = new THREE.Group();
+  const interior = new THREE.Group();   // hidden while the user is outside (the capsule is in stealth)
   const { shell, glow, glass } = cabinShell();
-  vehicle.add(shell, glow, glass);
+  interior.add(shell, glow, glass);
   const core = halo();
-  vehicle.add(core.group);
-  const mist = mistShell();
-  vehicle.add(mist);
+  interior.add(core.group);
   const screens = panels(mapDrawer);
-  vehicle.add(screens.group);
+  interior.add(screens.group);
+  const d = door();
+  const back = returnPanel();
+  const mist = mistShell();
+  vehicle.add(interior, d.group, back, mist);
   const rig = new THREE.Group();
   vehicle.add(rig);
   const base = new THREE.Color(LIGHT), hot = new THREE.Color(0xffffff);
   return {
-    vehicle, rig, mist, panels: screens,
+    vehicle, rig, mist, panels: screens, door: d, returnPanel: back,
+    // Outside, only the door frame and the way-back panel remain visible.
+    setOutside(on) { interior.visible = !on; back.visible = on; },
     animateCore(t, speedUp) {
       core.top.scale.setScalar(1 + speedUp * 0.08 * Math.sin(t * 3));
       core.mat.color.copy(base).lerp(hot, speedUp).multiplyScalar(1 + speedUp * 1.5);
@@ -296,8 +387,8 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   };
 }
 
-// Start position (1-10) on the floor; in VR the user can walk freely from here.
-export function placeRig(rig, seat, walk = { x: 0, z: 0 }) {
-  const p = seatPosition(seat);
+// Start place (1-10) on the floor inside, or the spot outside the door. walk = desktop walking offset.
+export function placeRig(rig, seat, walk = { x: 0, z: 0 }, outside = null) {
+  const p = outside || seatPosition(seat);
   rig.position.set(p.x + walk.x, 0, p.z + walk.z);
 }

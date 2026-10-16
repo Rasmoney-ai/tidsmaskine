@@ -198,7 +198,7 @@ function trees(rand, M = {}) {
     const lists = Object.fromEntries(keys.concat('e3_fjerntrae').map((k) => [k, []]));
     const shadows = [];
     ok.forEach(([x, z], i) => {
-      const far = Math.hypot(x - CENTER_X, z - CENTER_Z) > 170;
+      const far = Math.hypot(x - CENTER_X, z - CENTER_Z) > 125;   // beyond this: the simple far tree
       const key = far ? 'e3_fjerntrae' : i % 4 === 1 ? keys.filter((k) => k.includes('birk'))[i % 2] || keys[0] : keys.filter((k) => k.includes('eg'))[i % 3] || keys[0];
       const k = (far ? 1.6 : 0.85) + rand() * 0.45;
       lists[key].push({ x, z, y: groundHeight(x, z) - 0.1, yaw: rand() * 6.28, s: k });
@@ -284,7 +284,7 @@ export function buildWorld(scene, avoid, M = {}) {
     }
     return keys.map((k, i) => instanced(M[k], lists[i]));
   };
-  if (pick(['e4a_busk', 'e4b_busk']).length) decor.add(...scatterModels(pick(['e4a_busk', 'e4b_busk']), 220, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.8, 1.5]));
+  if (pick(['e4a_busk', 'e4b_busk']).length) decor.add(...scatterModels(pick(['e4a_busk', 'e4b_busk']), 130, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.8, 1.5]));
   else decor.add(scatter(bush.geometry(), 220, rand, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.7, 1.6]));
   // Pond with reeds.
   const water = new THREE.Mesh(new THREE.CircleGeometry(POND.r + 1.2, 28).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x4f7f95 }));

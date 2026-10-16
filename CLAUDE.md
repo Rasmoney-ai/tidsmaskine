@@ -1,5 +1,7 @@
 # Tidsmaskinen
 
+> **Ny retning:** Læs `DESIGN.md` først. Den er styrende frem for tidligere beslutninger her og i `MODELLER.md`. Oplevelsen er nu en detektivopgave på en øde plads: ingen figurer eller dyr, eleverne går ud af kapslen og scanner spor.
+
 VR-oplevelse til historieundervisning på Meta Quest 3 (Quest Browser). Eleverne sidder i en tidskapsel, der glider usynligt ("stealth") gennem fortiden, mens en tablet foran hver plads fortæller om det, de ser. Inspireret af Ray Bradburys "A Sound of Thunder": Regel nr. 1 er "Rør intet. Ændr intet."
 
 Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, velfungerende løsninger.
@@ -20,13 +22,14 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 
 ## Arkitektur
 
-- `timeline.js`: Rejsen er en række klip: intro, tidsspring, tre steder (stop), korte tidshop og tidsspring hjem. Tilstanden er (klip, tid i klippet). Samme tilstand giver samme billede. Ved hvert sted glider kapslen kort og står så stille. Man vælger sted på tabletten, og ellers kører stederne i rækkefølge.
+- `timeline.js`: Ekspeditionen er en række klip: intro, tidsspring, landing, tågespring mellem zoner og tidsspring hjem. Tilstanden er (klip, tid i klippet). Kapslen flytter sig kun, når eleven vælger en zone (Landsbyen, Gravhøjene, Runestenen, Palisaden). Døren åbner, når kapslen står stille i en zone.
 - `clock.js`: Udskifteligt ur (lokalt nu, senere lydspor eller fælles server-ur).
 - `capsule.js`: Ottekantet glaskapsel i ren Villeneuve-stil (mørk grafit, mat beton, tynde lyslinjer, få ravfarvede accenter). Bygges i koden og ses kun indefra. Ingen møbler: man kan gå rundt. Skærmpaneler langs vinduerne (guide med stedknapper, kort, status, arkiv), lysring under ovenlyset og tågeskal til tidsspring/komfort. 10 startpladser (`seatPosition`). På skærmen går man med W A S D.
-- `world.js`: Terræn (ingen græsstrå, kun farvede flader), himmel, træer. `jelling.js`: Rejse 1, opdelt i zoner (village, mounds, stone, always). Hvert sted viser og animerer kun sine zoner. `people.js`: figurbygger (pladsholdere indtil modellerne fra `MODELLER.md` kommer).
-- `shadows.js`: Falske bløde skygger. `life.js`: Fugle og sommerfugle.
+- `world.js`: Terræn (ingen græsstrå, kun farvede flader), himmel, træer. `jelling.js`: pladsen uden mennesker og dyr, opdelt i zonegrupper (village, mounds, stone, always), spor af liv (røg, økse i klodsen, halvfærdig væv, hovspor) og scanbare genstande. `people.js` og `life.js` bruges ikke længere.
+- `shadows.js`: Falske bløde skygger. `scanner.js`: Håndscanner (stråle i VR, klik på pc); scannede genstande lyser svagt.
+- `data/jelling.json`: Genstande og analyser til laboratoriepanelet. Nye genstande tilføjes her uden kodeændringer.
 - `perf.js`: Måler (`?debug=1`) og sikkerhedsnet, der skruer ned for detaljer, hvis billedfrekvensen falder i VR.
-- `audio.js`: Pladsholderlyd med Web Audio. `hands.js`: Brugerens hænder. `ui.js`: Startside og taster.
+- `audio.js`: Pladsholderlyd med Web Audio, slået fra som standard (`?sound=1` slår den til). Lyddesign laves senere af Rasmus. Tilføj ingen nye lyde. `hands.js`: Brugerens hænder. `ui.js`: Startside og taster.
 - Nye rejser: én fil pr. sted/tid som `jelling.js` plus et manuskript i tidslinjen.
 
 ## Komfort (ufravigeligt)
@@ -40,7 +43,7 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 ## 3D-modeller
 
 - Bestillingslisten står i `MODELLER.md`: GLB, ét mesh og ét materiale pr. model, figurer i T-pose med Mixamo-skelet.
-- Færdige modeller (63 stk. fra Claude Design, ids som i `MODELLER.md`) ligger i `models/` og indlæses af `src/models.js` (GLTFLoader r170 i `vendor/`). Mangler en fil, bruges pladsholderen fra koden.
+- Færdige modeller fra Claude Design (ids som i `MODELLER.md`) ligger i `models/`. Figurer og dyr er flyttet til `models/figurer/` og indlæses ikke og indlæses af `src/models.js` (GLTFLoader r170 i `vendor/`). Mangler en fil, bruges pladsholderen fra koden.
 - Statiske modeller slås sammen til ét mesh og gentages med instancing (træer, sten, palisade, hegn, får). Figurer styres med `Humanoid` (arme, hænder, gang) og dyr med `quadruped`.
 - Runestenens malede side A (runerne) drejes mod kapslen med `RUNE_FACE_YAW` i `jelling.js`.
 - Figurer animeres i koden ved at dreje knoglerne (`aimBone`). Flere kopier af samme figur med skelet laves med SkeletonUtils (`riggedCharacter(gltf, true)`), fx de fem får.

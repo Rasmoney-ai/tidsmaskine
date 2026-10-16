@@ -1,233 +1,151 @@
-// The journey is a sequence of clips: lab intro, time jump, stops, short hops between stops, jump home.
+// The expedition is a sequence of clips: lab intro, time jump, landing, fog hops between zones, jump home.
+// The capsule only moves when the user picks a zone (no guided tour, no auto-advance at zones).
 // Everything visible is a pure function of the state (clip, tau): same state => same picture.
-// The user (later the teacher) can pick the next stop; otherwise stops follow in order.
-import { COMFORT, TRIP_YEAR, HOME_YEAR, COUNTDOWN } from './config.js';
+import { HOME_YEAR, COUNTDOWN } from './config.js';
 
-// Stops. glide: slow straight glide [from, to] in world x/z. base: world-time offset for ambient animation.
-export const STOPS = {
-  A: {
-    name: 'Landsbyen', base: 1000, dur: 40, glide: [[-116, 20], [-96, 20]], glideStart: 3, glideDur: 22, zones: ['village'],
-    captions: [
-      [0, 'Vikingernes landsby', 'Jelling, ca. år 968. De fleste mennesker i vikingetiden var bønder. De boede i langhuse, hvor familien – og om vinteren også dyrene – boede under samme tag.'],
-      [12, 'Kig efter', 'Røgen fra ildstedet slipper ud gennem et hul i taget. Kvinden ved væven væver uld til tøj. Børnene leger fangeleg.'],
-      [24, 'Vidste du?', 'Vikingerne havde IKKE horn på hjelmene. Det er en myte, som blev opfundet mange hundrede år senere.'],
-    ],
-  },
-  B: {
-    name: 'Gravhøjene', base: 2000, dur: 40, glide: [[-41, 21], [-25, 22]], glideStart: 3, glideDur: 20, zones: ['mounds', 'stone'],
-    captions: [
-      [0, 'Gravhøjene', 'Vi er inden for den store palisade af egetræ. Den store høj mod nord er Nordhøjen. Her blev Haralds far, kong Gorm den Gamle, begravet omkring år 958.'],
-      [12, 'En ny høj', 'Haralds folk bygger en ny høj mod syd – Sydhøjen. Den bygges af tusindvis af græstørv, som bæres op én ad gangen.'],
-      [24, 'Skibssætningen', 'De store sten danner omridset af et kæmpe skib. Skibssætningen var over 350 meter lang – den største i Norden.'],
-    ],
-  },
-  C: {
-    name: 'Jellingstenen', base: 3000, dur: 46, glide: [[-7, 9], [-5, -8]], glideStart: 3, glideDur: 20, zones: ['stone', 'mounds'],
-    captions: [
-      [0, 'Jellingstenen', 'Kong Harald Blåtand – ham i den blå kappe – ser til, mens stenhuggeren hugger runer i den store sten. Bag dem står Haralds nye kirke af træ.'],
-      [12, 'Hvad står der?', '»Harald konge bød gøre disse kumler efter Gorm, sin fader, og Thyra, sin moder – den Harald, som vandt sig hele Danmark og Norge og gjorde danerne kristne.«'],
-      [23, 'Danmarks dåbsattest', 'Stenen kaldes Danmarks dåbsattest. Dengang var den malet i stærke farver. Den står i Jelling endnu i dag.'],
-      [33, '! Stealth-alarm !', 'En hund har fået øje på os! Hunde kan høre og lugte meget mere end mennesker. Kapslen trækker sig stille tilbage.'],
-    ],
-    sounds: [[33, 'alert']],
-  },
+// Zones on the site. capsule: where the capsule stands (world x/z, yaw so its door faces the zone).
+// base: world-time offset for small ambient motion (smoke, fire). zones: scene groups to show.
+export const ZONES = {
+  A: { name: 'Landsbyen', base: 1000, capsule: { x: -86.5, z: 18, yaw: 0 }, zones: ['village'] },
+  B: { name: 'Gravhøjene', base: 2000, capsule: { x: -27, z: 25.8, yaw: Math.PI }, zones: ['mounds', 'stone'] },
+  C: { name: 'Runestenen', base: 3000, capsule: { x: -5.24, z: -8.76, yaw: -Math.PI / 4 }, zones: ['stone', 'mounds'] },
+  D: { name: 'Palisaden', base: 4000, capsule: { x: -37.8, z: 17, yaw: Math.PI / 2 }, zones: ['village', 'mounds'] },
 };
-export const STOP_ORDER = ['A', 'B', 'C'];
+export const ZONE_ORDER = ['A', 'B', 'C', 'D'];
+// The map screen draws each place from `glide` (the map is untouched in this milestone).
+for (const z of Object.values(ZONES)) z.glide = [[z.capsule.x, z.capsule.z], [z.capsule.x, z.capsule.z]];
+const LANDING = { base: 500, capsule: { x: -72, z: -22, yaw: -Math.PI / 2 }, zones: ['village'] };
 
-// Moments inside stop C that the dog scene hooks into.
-const DOG_NOTICE = 30, DOG_BARK = 33;
+// Where the user stands when they go out (capsule-local, the door is in the front wall, forward is -z).
+export const OUTSIDE_SPOT = { x: 0, z: -5.2 };
 
 const CLIPS = {
-  intro: { kind: 'lab', dur: 12, captions: [
-    [0, 'Tidsmaskinen · Rejse 1', 'Velkommen om bord! I dag rejser vi over 1000 år tilbage i tiden – til Jelling i Jylland, omkring år 968.'],
-    [6, 'Regel nr. 1', 'Rør intet. Ændr intet. Den mindste ændring i fortiden kan ændre hele historien. Derfor er kapslen i stealth-tilstand: Ingen kan se os.'],
+  intro: { kind: 'lab', dur: 10, captions: [
+    [0, 'Tidsmaskinen · Ekspedition 1', 'I er tidsrejsende detektiver. Kapslen lander et ukendt sted i fortiden. Find ud af hvor, hvornår og hvad der er ved at ske.'],
+    [5, 'Regel nr. 1', 'Rør intet. Ændr intet. I tager ikke ting med – I scanner dem. Laboratoriet arbejder på kopier.'],
   ] },
-  jumpPast: { kind: 'jump', dir: 'past', dur: 14, captions: [[0, 'Tidsspring', 'Hold godt fast … Vi rejser tilbage gennem århundrederne.']], sounds: [[0, 'whooshStart'], [13, 'chime']] },
-  hop: { kind: 'hop', dur: 3.5, captions: [[0, 'Tidshop', 'Kapslen skjuler sig i tågen og flytter sig til næste sted …']] },
+  jumpPast: { kind: 'jump', dir: 'past', dur: 14, captions: [[0, 'Tidsspring', 'Hold godt fast … Destinationen er ukendt.']], sounds: [[0, 'whooshStart'], [13, 'chime']] },
+  landing: { kind: 'hold', dur: Infinity, ...LANDING, captions: [[0, 'Ukendt sted · ukendt tid', 'Kapslen er landet. Pladsen ser ud til at være forladt for nylig. Vælg en zone, I vil undersøge.']] },
+  hop: { kind: 'hop', dur: 3.5, captions: [[0, 'Tågespring', 'Kapslen skjuler sig i tågen og flytter sig til zonen …']] },
   jumpHome: { kind: 'jump', dir: 'home', dur: 14, captions: [[0, 'Tidsspring', 'Vi vender hjem til vores egen tid.']], sounds: [[0, 'whooshStart'], [13, 'chime']] },
-  home: { kind: 'lab', dur: 16, captions: [
-    [0, 'Velkommen hjem – år 2026', 'Tidslinjen er intakt. Ingen sommerfugle kom til skade under denne rejse.'],
-    [8, 'Snak om det', 'Hvad overraskede dig mest? Hvad tror du, der var sket, hvis Harald havde set kapslen?'],
-  ] },
+  home: { kind: 'lab', dur: Infinity, captions: [[0, 'Velkommen hjem – år 2026', 'Tag jeres spor og jeres bud med til samtalen i klassen. Hvor og hvornår var I? Hvad var ved at ændre sig?']] },
 };
-for (const id of STOP_ORDER) CLIPS[id] = { kind: 'stop', ...STOPS[id] };
+for (const id of ZONE_ORDER) CLIPS[id] = { kind: 'zone', dur: Infinity, ...ZONES[id], captions: [[0, ZONES[id].name, 'Døren er åben. Gå ud og undersøg zonen. Peg med håndscanneren på et spor for at scanne det.']] };
 
 const smooth = (x) => { x = Math.min(Math.max(x, 0), 1); return x * x * (3 - 2 * x); };
-const ARRIVE = 3;   // seconds of mist clearing when arriving at a stop
+const ARRIVE = 3;   // seconds of mist clearing after landing
 const LEAVE = 1.4;  // seconds of mist rising at the start of a hop
 
 export class Timeline {
   constructor() {
     this.clips = CLIPS;
-    this.stops = STOPS;
-    this.order = STOP_ORDER;
-    this.dogNotice = STOPS.C.base + DOG_NOTICE;
-    this.dogBark = STOPS.C.base + DOG_BARK;
+    this.stops = ZONES;        // name kept for the map screen
+    this.order = ZONE_ORDER;
     this.reset();
   }
 
-  // Journey state: which clip we are in, plus what a hop came from / goes to.
   reset() {
     this.clipId = 'intro';
     this.visited = new Set();
-    this.from = null;      // { stop, tau } when hopping or jumping home
-    this.target = null;    // stop id a hop leads to
+    this.from = null;      // { clip, tau, mist0 } when hopping or jumping home
+    this.target = null;    // zone id a hop leads to
   }
 
   get clip() { return CLIPS[this.clipId]; }
   get finished() { return this.clipId === 'home'; }
+  get place() { return this.clip.capsule ? this.clip : this.from ? CLIPS[this.from.clip] : LANDING; }
 
-  // Next stop in order that has not been visited yet.
-  nextUnvisited() { return STOP_ORDER.find((s) => !this.visited.has(s) && s !== this.clipId) || null; }
-
-  // Called by the player when the current clip has run out. Returns false at the very end.
-  advance(tau) {
+  // Called when a clip with a fixed length has run out.
+  advance() {
     const id = this.clipId;
     if (id === 'intro') return this._enter('jumpPast');
-    if (id === 'jumpPast') return this._enterStop(this.target || 'A');
-    if (id === 'hop') return this._enterStop(this.target);
-    if (CLIPS[id].kind === 'stop') {
-      const next = this.nextUnvisited();
-      return next ? this.choose(next, tau) : this.goHome(tau);
-    }
+    if (id === 'jumpPast') return this._enter('landing');
+    if (id === 'hop') { const t = this.target; this.visited.add(t); this.target = null; return this._enter(t); }
     if (id === 'jumpHome') return this._enter('home');
     return false;
   }
 
-  // The user picked a stop on the panel.
-  choose(stop, tau = 0) {
-    if (stop === this.clipId) return false;
-    if (this.clipId === 'intro' || this.clipId === 'jumpPast') { this.target = stop; return false; }
-    if (this.clipId === 'home' || this.clipId === 'jumpHome') return false;
-    this.from = CLIPS[this.clipId].kind === 'stop' ? { stop: this.clipId, tau, mist0: this._stopMist(this.clipId, tau) } : this.from;
-    this.target = stop;
+  // The user picked a zone on the panel: the only way the capsule moves.
+  choose(zone, tau = 0) {
+    const c = this.clip;
+    if (zone === this.clipId || !(c.kind === 'zone' || c.kind === 'hold')) return false;
+    this.from = { clip: this.clipId, tau, mist0: this._arriveMist(tau) };
+    this.target = zone;
     return this._enter('hop');
   }
 
   goHome(tau = 0) {
-    if (CLIPS[this.clipId].kind === 'stop') this.from = { stop: this.clipId, tau, mist0: this._stopMist(this.clipId, tau) };
-    else if (this.clipId !== 'hop') return false;
+    const c = this.clip;
+    if (!(c.kind === 'zone' || c.kind === 'hold')) return false;
+    this.from = { clip: this.clipId, tau, mist0: this._arriveMist(tau) };
     return this._enter('jumpHome');
   }
 
-  _stopMist(id, tau) {
-    const c = CLIPS[id];
-    let m = 1 - smooth(tau / ARRIVE);
-    if (id === 'C' && tau > c.dur - 4) m = Math.max(m, smooth((tau - (c.dur - 4)) / 3.5));
-    return m;
-  }
-
-  _enterStop(id) { this.visited.add(id); this.target = null; return this._enter(id); }
+  _arriveMist(tau) { return 1 - smooth(tau / ARRIVE); }
   _enter(id) { this.clipId = id; return true; }
 
-  // Where the capsule is during stop `id` at local time tau.
-  stopPose(id, tau, comfort, out) {
-    const s = STOPS[id], [[x0, z0], [x1, z1]] = s.glide;
-    let f = 1;
-    if (!comfort) {
-      const T = s.glideDur, a = COMFORT.RAMP_TIME, x = Math.min(Math.max(tau - s.glideStart, 0), T);
-      // Cosine speed ramp: fraction of the glide distance covered after x seconds.
-      const v = 1 / (T - a);
-      const ramp = (tt) => v * (tt / 2 - a / (2 * Math.PI) * Math.sin(Math.PI * tt / a));
-      f = x < a ? ramp(x) : x > T - a ? 1 - ramp(T - x) : v * a / 2 + v * (x - a);
-    }
-    out.x = x0 + (x1 - x0) * f; out.z = z0 + (z1 - z0) * f;
-    out.yaw = Math.atan2(-(x1 - x0), -(z1 - z0));
-    return out;
-  }
+  // The door can open once the capsule stands still in a zone and the mist has cleared.
+  doorOpen(tau) { return this.clip.kind === 'zone' && tau > ARRIVE + 0.5; }
 
-  glideSpeed(id) {
-    const s = STOPS[id], [[x0, z0], [x1, z1]] = s.glide;
-    return Math.hypot(x1 - x0, z1 - z0) / (s.glideDur - COMFORT.RAMP_TIME);
-  }
-
-  // World time for ambient animation (people, smoke, birds): continuous inside a stop.
+  // World time for ambient motion (smoke, fire): continuous within a place.
   worldTime(tau) {
     const c = this.clip;
-    if (c.kind === 'stop') return c.base + Math.max(tau, 0);
-    if (this.from) return STOPS[this.from.stop].base + this.from.tau + (this.clipId === 'hop' || this.clipId === 'jumpHome' ? tau : 0);
-    const first = STOPS[this.target || 'A'];
-    return first.base;
+    if (c.capsule) return c.base + Math.max(tau, 0);
+    if (this.from) return CLIPS[this.from.clip].base + this.from.tau + tau;
+    return LANDING.base;
   }
 
-  // Capsule position for ambient code that needs it (the dog looks at the capsule).
-  poseAtWorld(w, out = {}) {
-    for (const id of STOP_ORDER) {
-      const s = STOPS[id];
-      if (w >= s.base && w < s.base + 900) return this.stopPose(id, w - s.base, false, out);
+  // Points around all capsule positions (used to keep stones out of the capsule's way).
+  routePoints() {
+    const pts = [];
+    for (const p of [LANDING, ...Object.values(ZONES)]) {
+      const { x, z, yaw } = p.capsule;
+      for (let i = -4; i <= 7; i++) pts.push({ x: x - Math.sin(yaw) * i, z: z - Math.cos(yaw) * i });
     }
-    return this.stopPose('A', 0, false, out);
+    return pts;
   }
 
-  // Full state for the current clip at local time tau.
   state(tau, comfort = false, out = {}) {
-    const c = this.clip, id = this.clipId;
+    const c = this.clip, id = this.clipId, p = this.place;
     out.clipId = id; out.kind = c.kind; out.tau = tau;
     out.w = this.worldTime(tau);
-    // Capsule pose.
-    if (c.kind === 'stop') this.stopPose(id, tau, comfort, out);
-    else if (this.from && (id === 'hop' || id === 'jumpHome')) this.stopPose(this.from.stop, this.from.tau, comfort, out);
-    else this.stopPose(this.target || 'A', 0, comfort, out);
-    out.stop = c.kind === 'stop' ? id : null;
-    out.zones = c.kind === 'stop' ? c.zones : this.from ? STOPS[this.from.stop].zones : STOPS[this.target || 'A'].zones;
+    out.x = p.capsule.x; out.z = p.capsule.z; out.yaw = p.capsule.yaw;
+    out.zone = c.kind === 'zone' ? id : null;
+    out.zones = p.zones;
 
-    // Mist: 1 = outside hidden. tunnel: time-jump colors. lab: bright home lab.
     let mist = 0, tunnel = 0, lab = 0;
     if (c.kind === 'lab') { mist = 1; lab = 1; }
-    else if (c.kind === 'stop') mist = this._stopMist(id, tau);
+    else if (c.kind === 'zone' || c.kind === 'hold') mist = this._arriveMist(tau);
     else if (c.kind === 'hop') { const m0 = this.from ? this.from.mist0 : 1; mist = m0 + (1 - m0) * smooth(tau / LEAVE); tunnel = 0.25 * smooth((tau - LEAVE) / 1); }
     else if (c.kind === 'jump') {
-      const p = tau / c.dur;
+      const q = tau / c.dur;
       const m0 = this.from ? this.from.mist0 : 1;
       mist = c.dir === 'home' ? m0 + (1 - m0) * smooth(tau / 2) : 1;
-      tunnel = smooth(p / 0.18) * (1 - smooth((p - 0.82) / 0.18));
-      lab = c.dir === 'past' ? 1 - smooth(p / 0.18) : smooth((p - 0.82) / 0.18);
+      tunnel = smooth(q / 0.18) * (1 - smooth((q - 0.82) / 0.18));
+      lab = c.dir === 'past' ? 1 - smooth(q / 0.18) : smooth((q - 0.82) / 0.18);
     }
     out.mist = mist; out.tunnel = tunnel; out.lab = lab;
 
-    let year = TRIP_YEAR;
-    if (c.kind === 'jump') {
-      const k = smooth((tau / c.dur - 0.1) / 0.8);
-      year = c.dir === 'past' ? HOME_YEAR + (TRIP_YEAR - HOME_YEAR) * k : TRIP_YEAR + (HOME_YEAR - TRIP_YEAR) * k;
-    } else if (c.kind === 'lab') year = HOME_YEAR;
-    out.year = Math.round(year);
+    // The year is unknown in the past; during jumps the display scrambles.
+    out.year = c.kind === 'lab' ? HOME_YEAR : null;
     out.jumping = c.kind === 'jump';
     out.jumpProgress = c.kind === 'jump' ? tau / c.dur : 0;
-    out.alarm = out.w >= this.dogBark && out.w < STOPS.C.base + STOPS.C.dur + 20;
+    out.alarm = false;
+    out.doorOpen = this.doorOpen(tau);
     out.caption = this.captionAt(tau);
     return out;
   }
 
   captionAt(tau) {
     const c = this.clip;
-    if (this.clipId === 'intro' && tau < 0) return { title: 'Gør klar', body: `Rejsen starter om ${Math.ceil(-tau)} …`, key: 'cd' + Math.ceil(-tau) };
-    if (this.clipId === 'home' && tau >= c.dur) return { title: 'Rejsen er slut', body: 'Tryk på »Rejs igen« for at starte forfra.', key: 'end' };
+    if (this.clipId === 'intro' && tau < 0) return { title: 'Gør klar', body: `Ekspeditionen starter om ${Math.ceil(-tau)} …`, key: 'cd' + Math.ceil(-tau) };
     let cap = null;
     for (const x of c.captions || []) if (x[0] <= tau) cap = x;
-    if (c.kind === 'stop' && tau >= c.dur - 7 && this.clipId !== 'C') {
-      const next = this.nextUnvisited();
-      const where = next ? `Om lidt fortsætter vi til ${STOPS[next].name.toLowerCase()}.` : 'Om lidt rejser vi hjem.';
-      return { title: 'Hvor nu?', body: `Vælg et sted på panelet. ${where}`, key: this.clipId + 'next' + next };
-    }
     if (!cap) return { title: '', body: '', key: this.clipId + 'none' };
     return { title: cap[1], body: cap[2], key: this.clipId + cap[0] };
   }
 
   sounds() { return this.clip.sounds || []; }
 
-  // Points along all glides (used to keep stones out of the capsule's way).
-  routePoints() {
-    const pts = [];
-    for (const id of STOP_ORDER) {
-      const [[x0, z0], [x1, z1]] = STOPS[id].glide;
-      for (let i = 0; i <= 20; i++) pts.push({ x: x0 + (x1 - x0) * i / 20, z: z0 + (z1 - z0) * i / 20 });
-    }
-    return pts;
-  }
-
-  // Comfort check, printed once at startup.
-  report() {
-    const speeds = Object.fromEntries(STOP_ORDER.map((id) => [id, +this.glideSpeed(id).toFixed(2)]));
-    return { glideSpeed: speeds, maxAllowed: COMFORT.MAX_SPEED, countdown: COUNTDOWN };
-  }
+  report() { return { zones: ZONE_ORDER.length, countdown: COUNTDOWN }; }
 }

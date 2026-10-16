@@ -9,14 +9,14 @@ import { MAT, toonMap } from './toon.js';
 // Keys used in the code -> file in models/. Ids match MODELLER.md.
 const KEYS = [
   'b1_langhus', 'b2_langhus_lille', 'b3_grubehus', 'b4_vaev', 'b5_braende', 'b6_ildsted', 'b7_toende', 'b8_broend',
-  'b9_fisk', 'b10_baenk', 'b11_hegn', 'b12_faar', 'b13_kvinde', 'b14_mand', 'b15_dreng', 'b16_pige',
-  'c1_palisade', 'c2_port', 'c3a_sten', 'c3b_sten', 'c3c_sten', 'c3d_sten', 'c4_toerv', 'c5_toervstak', 'c6_kaerre', 'c7_okse',
-  'c8a_toervebaerer', 'c8b_toervebaerer', 'c8c_toervebaerer', 'c8d_toervebaerer',
-  'd1_runesten', 'd2_gormsten', 'd3_kirke', 'd4_harald', 'd5_stenhugger', 'd6_poppo', 'd7a_vagt', 'd7b_vagt', 'd8_hund',
+  'b9_fisk', 'b10_baenk', 'b11_hegn',
+  'c1_palisade', 'c2_port', 'c3a_sten', 'c3b_sten', 'c3c_sten', 'c3d_sten', 'c4_toerv', 'c5_toervstak', 'c6_kaerre',
+  'd1_runesten', 'd2_gormsten', 'd3_kirke',
   'e1a_eg', 'e1b_eg', 'e1c_eg', 'e2a_birk', 'e2b_birk', 'e3_fjerntrae', 'e4a_busk', 'e4b_busk', 'e5a_sten', 'e5b_sten', 'e5c_sten',
-  'e6_siv', 'e7_krage', 'e8a_sommerfugl', 'e8b_sommerfugl', 'e8c_sommerfugl',
+  'e6_siv',
   'f1_oekse', 'f2_hammer', 'f3_mejsel', 'f4_spyd', 'f5_skjold', 'f6_korsstav', 'f7_ten', 'f8_spand',
 ];
+// People and animals (models/figurer/) are not loaded: the site is deserted (see DESIGN.md).
 
 export async function loadModels(onProgress = () => {}) {
   const loader = new GLTFLoader();

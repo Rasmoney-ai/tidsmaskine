@@ -61,6 +61,7 @@ export function initUI(app, renderer) {
       case 'KeyN': app.nextStop(1); break;
       case 'KeyP': app.nextStop(-1); break;
       case 'KeyJ': app.press('home'); break;
+      case 'KeyE': app.toggleDoor(); break;
       case 'KeyR': app.restart(); break;
       case 'KeyC': comfort.checked = !comfort.checked; app.setComfort(comfort.checked); break;
       case 'KeyH': hud.classList.toggle('small'); break;
@@ -77,8 +78,8 @@ export function initUI(app, renderer) {
   app.onFrame = (t, st) => {
     if (hud.hidden) return;
     const tl = app.timeline, c = tl.clip;
-    const name = c.name || { intro: 'Afgang', jumpPast: 'Tidsspring', hop: 'Tidshop', jumpHome: 'Tidsspring hjem', home: 'Hjemme' }[tl.clipId];
-    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)}/${c.dur} s · plads ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`
+    const name = c.name || { intro: 'Afgang', jumpPast: 'Tidsspring', landing: 'Landingsplads', hop: 'Tågespring', jumpHome: 'Tidsspring hjem', home: 'Hjemme' }[tl.clipId];
+    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)} s${app.state.outside ? ' · udenfor' : ''} · plads ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`
       + (app.state.debug ? ` · ${app.perf.summary()}` : '');
   };
 }

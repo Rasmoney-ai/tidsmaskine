@@ -4,7 +4,8 @@ export class Audio {
 
   // Must be called from a user gesture.
   start() {
-    if (new URLSearchParams(location.search).get('mute') === '1') return; // silent mode for testing
+    // Placeholder sound is off by default (sound design comes later). ?sound=1 turns it on.
+    if (new URLSearchParams(location.search).get('sound') !== '1') return;
     if (this.ctx) { this.ctx.resume(); return; }
     const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(ctx.destination);

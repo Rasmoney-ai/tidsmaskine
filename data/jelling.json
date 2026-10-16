@@ -1,0 +1,13 @@
+{
+  "expedition": "Ekspedition 1",
+  "items": {
+    "soelvmoent": {
+      "name": "Sølvmønt",
+      "zone": "A",
+      "found": "På en bænk ved ildstedet",
+      "analyses": [
+        { "type": "Materiale", "text": "Sølv. Indskrift med et ukendt skrifttegn." }
+      ]
+    }
+  }
+}
