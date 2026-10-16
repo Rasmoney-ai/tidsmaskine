@@ -1,3 +1,5 @@
+> **Gammel version.** Dette er manuskriptet til den guidede tur med animerede figurer og hunden, der opdager kapslen. Projektet er skiftet til en detektivopgave uden figurer (se `DESIGN.md`). Filen gemmes kun til reference.
+
 # Rejse 1: Jelling, ca. år 968
 
 Pilot til TIDSMASKINEN. Varighed ca. 4 minutter, hvis man ser alle tre steder.

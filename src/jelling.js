@@ -534,6 +534,8 @@ export function buildJelling(scene, timeline, models = {}) {
   const item = (key) => prop(M[key]);
   // Something the hand scanner can scan: the object, a larger invisible hit volume, and its id in the data file.
   const scannable = (id, object, hitRadius) => {
+    // Own copy of the shared material, so the scan glow lights up only this object.
+    object.traverse((o) => { if (o.isMesh && o.material === MAT.world) o.material = MAT.world.clone(); });
     const hit = new THREE.Mesh(new THREE.SphereGeometry(hitRadius, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
     object.add(hit);
     scannables.push({ id, object, hit, zone });

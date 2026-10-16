@@ -32,6 +32,10 @@ function ring(b, r, y, h, thick, color) {
   }
 }
 
+// The door: in the front side (side 3, facing -z). W = opening width, TOP = top of the opening.
+const DOOR_SIDE = 3;
+const DOOR = { W: 1.15, H: 2.2, TOP: CAPSULE.SILL + 2.2 - 0.25 };
+
 // Sides with a screen panel (index k of sideMid). Side 3 is the front (-z) and stays free for the view.
 export const PANEL_SIDES = { 2: 'guide', 4: 'guide', 1: 'map', 5: 'status', 0: 'lab', 6: 'lab', 7: 'guide' };
 
@@ -91,7 +95,12 @@ function cabinShell() {
   const gl = new Builder(903);
   for (let k = 0; k < 8; k++) {
     const a = sideMid(k), d = R * APO - 0.03;
-    gl.add(new THREE.PlaneGeometry(R * SIDE, TOP - SILL), 0xbfe0ea, { pos: [d * Math.sin(a), (TOP + SILL) / 2, d * Math.cos(a)], rot: [0, a, 0] });
+    const cx = d * Math.sin(a), cz = d * Math.cos(a), tx = Math.cos(a), tz = -Math.sin(a);   // side center and tangent
+    if (k !== DOOR_SIDE) { gl.add(new THREE.PlaneGeometry(R * SIDE, TOP - SILL), 0xbfe0ea, { pos: [cx, (TOP + SILL) / 2, cz], rot: [0, a, 0] }); continue; }
+    // Front side: glass beside and above the door opening, none in the opening itself.
+    const gap = DOOR.W + 0.09, side = (R * SIDE - gap) / 2, top = DOOR.TOP;
+    for (const s of [-1, 1]) { const o = s * (gap + side) / 2; gl.add(new THREE.PlaneGeometry(side, TOP - SILL), 0xbfe0ea, { pos: [cx + tx * o, (TOP + SILL) / 2, cz + tz * o], rot: [0, a, 0] }); }
+    gl.add(new THREE.PlaneGeometry(gap, TOP - top), 0xbfe0ea, { pos: [cx, (TOP + top) / 2, cz], rot: [0, a, 0] });
   }
   gl.add(new THREE.CircleGeometry(rTop, 8), 0xbfe0ea, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
   const glass = new THREE.Mesh(gl.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.06, depthWrite: false, fog: false, side: THREE.DoubleSide }));
@@ -256,7 +265,7 @@ function panels(mapDrawer) {
     const s = screens.map, ctx = s.ctx;
     const key = `${Math.round(x * 2)}|${Math.round(z * 2)}`;
     if (key === s.last) return; s.last = key;
-    screenBase(ctx, 'KORT · JELLING');
+    screenBase(ctx, 'KORT · UKENDT STED');
     mapDrawer(ctx, { x: 40, y: 70, w: SW - 80, h: SH - 110 }, x, z, yaw);
     s.tex.needsUpdate = true;
   }
@@ -310,7 +319,7 @@ function panels(mapDrawer) {
 
 // The door in the front wall. It slides open when the capsule stands still in a zone.
 function door() {
-  const R = CAPSULE.RADIUS, zf = -R * APO, W = 1.15, H = 2.2;
+  const R = CAPSULE.RADIUS, zf = -R * APO, W = DOOR.W, H = DOOR.H;
   const group = new THREE.Group();
   const frame = new Builder(910);
   for (const x of [-W / 2 - 0.03, W / 2 + 0.03]) frame.add(G.box(0.03, H, 0.03), LIGHT, { pos: [x, CAPSULE.SILL + H / 2 - 0.25, zf] });

@@ -15,7 +15,6 @@ import { buildScanner } from './scanner.js';
 const params = new URLSearchParams(location.search);
 const state = {
   seat: Math.min(Math.max(parseInt(params.get('seat'), 10) || 1, 1), SEAT_COUNT),
-  comfort: params.get('comfort') === '1',
   debug: params.get('debug') === '1',
   outside: false,
 };
@@ -121,7 +120,6 @@ const app = {
   keys: new Set(),
   restart(play = true) { timeline.reset(); scanner.scanned.clear(); setOutside(false); clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
   setSeat(n) { state.seat = n; walk.x = walk.z = 0; if (!state.outside) placeRig(capsule.rig, n); },
-  setComfort(on) { state.comfort = on; },
   // Buttons and actions: a zone id, 'door' (go out), 'enter' (back in), 'home', 'again'.
   press(id) {
     if (id === 'again') return app.restart();
@@ -215,7 +213,7 @@ renderer.setAnimationLoop((now, frame) => {
   const dt = Math.min((now - lastNow) / 1000, 0.1); lastNow = now;
   let tau = clock.t;
   if (clock.playing && tau >= timeline.clip.dur) { if (timeline.advance()) { clock.seek(0); tau = 0; } }
-  timeline.state(tau, state.comfort, st);
+  timeline.state(tau, false, st);
   // Leaving the zone (the door closes) always brings the user back inside.
   if (state.outside && !st.doorOpen && !transition) setOutside(false);
 

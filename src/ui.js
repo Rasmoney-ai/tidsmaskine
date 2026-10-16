@@ -1,11 +1,9 @@
-// Start page (seat choice, comfort, enter VR / screen) and desktop keyboard controls.
+// Start page (start place, enter VR / screen) and desktop keyboard controls.
 import { SEAT_COUNT } from './config.js';
 
 export function initUI(app, renderer) {
   const $ = (id) => document.getElementById(id);
-  const start = $('start'), hud = $('hud'), seats = $('seats'), vrBtn = $('enter-vr'), deskBtn = $('enter-desktop'), comfort = $('comfort');
-  comfort.checked = app.state.comfort;
-  comfort.onchange = () => app.setComfort(comfort.checked);
+  const start = $('start'), hud = $('hud'), seats = $('seats'), vrBtn = $('enter-vr'), deskBtn = $('enter-desktop');
 
   for (let n = 1; n <= SEAT_COUNT; n++) {
     const b = document.createElement('button');
@@ -63,7 +61,6 @@ export function initUI(app, renderer) {
       case 'KeyJ': app.press('home'); break;
       case 'KeyE': app.toggleDoor(); break;
       case 'KeyR': app.restart(); break;
-      case 'KeyC': comfort.checked = !comfort.checked; app.setComfort(comfort.checked); break;
       case 'KeyH': hud.classList.toggle('small'); break;
       default: {
         const n = e.code.startsWith('Digit') ? parseInt(e.code.slice(5), 10) : NaN;
@@ -79,7 +76,7 @@ export function initUI(app, renderer) {
     if (hud.hidden) return;
     const tl = app.timeline, c = tl.clip;
     const name = c.name || { intro: 'Afgang', jumpPast: 'Tidsspring', landing: 'Landingsplads', hop: 'Tågespring', jumpHome: 'Tidsspring hjem', home: 'Hjemme' }[tl.clipId];
-    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)} s${app.state.outside ? ' · udenfor' : ''} · plads ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`
+    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)} s${app.state.outside ? ' · udenfor' : ''} · plads ${app.state.seat}`
       + (app.state.debug ? ` · ${app.perf.summary()}` : '');
   };
 }
