@@ -32,7 +32,9 @@ export function buildLife(parent, timeline) {
   parent.add(birds, flies);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3();
   return {
-    update(t) {
+    update(t, zones = ['village', 'stone']) {
+      birds.visible = zones.includes('village');
+      flies.visible = zones.includes('stone');
       for (let i = 0; i < 8; i++) {
         const a = t * 0.16 + i * 0.32, r = 26 + (i % 3) * 3;
         p.set(-88 + Math.cos(a) * r, 16 + (i % 4) * 1.5 + Math.sin(t * 0.5 + i) * 1.2, 18 + Math.sin(a) * r * 0.7);

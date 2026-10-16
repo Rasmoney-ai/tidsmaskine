@@ -469,25 +469,32 @@ export function buildJelling(scene, timeline) {
   const shadows = [];
   const emitters = [];
   const r = rng(200);
+  // Zones: only the zones a stop can see are shown and animated. 'always' stays visible.
+  const zones = { always: new THREE.Group(), village: new THREE.Group(), mounds: new THREE.Group(), stone: new THREE.Group() };
+  Object.values(zones).forEach((z) => group.add(z));
+  let zone = 'village';
+  const add = (...objs) => zones[zone].add(...objs);
+  const act = (a) => { a.zone = zone; actors.push(a); };
+  const emit = (e) => { e.zone = zone; emitters.push(e); };
 
   // --- Village ---------------------------------------------------------
-  group.add(place(longhouse(22, 7.2, 301), -96, 0));
-  group.add(place(longhouse(18, 6.4, 302), -78, 38, 0.06));
-  group.add(place(pitHouse(303), -110, 36, 0.3));
-  group.add(place(pitHouse(304), -64, 4, -0.4));
-  group.add(place(woodpile(305), -106, 29, 0.2));
-  group.add(fenceRing(-122, 2, 7, r));
-  group.add(props());
-  group.add(place(loom(), -88.5, 8, -Math.PI / 2));
+  add(place(longhouse(22, 7.2, 301), -96, 0));
+  add(place(longhouse(18, 6.4, 302), -78, 38, 0.06));
+  add(place(pitHouse(303), -110, 36, 0.3));
+  add(place(pitHouse(304), -64, 4, -0.4));
+  add(place(woodpile(305), -106, 29, 0.2));
+  add(fenceRing(-122, 2, 7, r));
+  add(props());
+  add(place(loom(), -88.5, 8, -Math.PI / 2));
   const fire = place(firePit(), -84, 12);
-  group.add(fire);
-  for (const s of [smoke(-96, 5.4, 0, 1), smoke(-78, 5.4, 38, 2)]) { group.add(s.group); actors.push(s); }
-  actors.push({ update(t) { fire.flame.scale.set(1 + 0.12 * Math.sin(t * 11), 1 + 0.25 * Math.sin(t * 7.3) + 0.1 * Math.sin(t * 17), 1 + 0.12 * Math.cos(t * 9)); } });
+  add(fire);
+  for (const s of [smoke(-96, 5.4, 0, 1), smoke(-78, 5.4, 38, 2)]) { add(s.group); act(s); }
+  act({ update(t) { fire.flame.scale.set(1 + 0.12 * Math.sin(t * 11), 1 + 0.25 * Math.sin(t * 7.3) + 0.1 * Math.sin(t * 17), 1 + 0.12 * Math.cos(t * 9)); } });
 
   // Weaver at the loom.
   const weaver = makePerson({ dress: 0x4f7a8c, apron: 0xc9a86b, brooch: 0xd9b44a, hair: 0xc68b3e, longHair: true, headscarf: 0xe8dcc0, skin: SKIN(1) });
-  group.add(place(weaver.root, -87.6, 8, -Math.PI / 2));
-  actors.push({ update(t) {
+  add(place(weaver.root, -87.6, 8, -Math.PI / 2));
+  act({ update(t) {
     standPose(weaver, t, 2);
     weaver.head.rotation.y = 0;
     const k = Math.sin(t * 1.4);
@@ -498,9 +505,9 @@ export function buildJelling(scene, timeline) {
   // Man chopping wood (strike every 2.4 s).
   const chopper = makePerson({ tunic: 0x9c4a32, pants: 0x4d4436, hair: 0x6b4423, beard: 0x6b4423, seed: 5 });
   chopper.armR.hand.add(tool('axe'));
-  group.add(place(chopper.root, -104.4, 28.4, Math.PI / 2 + 0.2));
+  add(place(chopper.root, -104.4, 28.4, Math.PI / 2 + 0.2));
   const CHOP = 2.4;
-  actors.push({ update(t) {
+  act({ update(t) {
     standPose(chopper, t, 1);
     chopper.head.rotation.y = 0;
     const p = (t % CHOP) / CHOP;
@@ -512,13 +519,13 @@ export function buildJelling(scene, timeline) {
     chopper.armR.rotation.z = 0.15; chopper.armL.rotation.z = -0.15;
     chopper.body.rotation.x = p > 0.55 && p < 0.75 ? 0.25 : 0.05;
   } });
-  emitters.push({ name: 'chop', period: CHOP, offset: CHOP * 0.66, x: -104, z: 29 });
+  emit({ name: 'chop', period: CHOP, offset: CHOP * 0.66, x: -104, z: 29 });
 
   // Two children playing tag.
   for (let k = 0; k < 2; k++) {
     const kid = makePerson({ tunic: k ? 0x6e8f3e : 0xb5652f, pants: 0x5b4a3a, hair: k ? 0xd9a441 : 0x5a3a20, scale: 0.68, seed: 10 + k, longHair: k === 1 });
-    group.add(kid.root);
-    actors.push({ update(t) {
+    add(kid.root);
+    act({ update(t) {
       const w = 0.62, rad = 3.2 + 0.6 * Math.sin(t * 0.4 + k);
       const a = t * w + k * 1.0;
       const x = -86 + Math.cos(a) * rad, z = 29 + Math.sin(a) * rad * 0.8;
@@ -531,25 +538,27 @@ export function buildJelling(scene, timeline) {
   for (let i = 0; i < 5; i++) {
     const sh = makeSheep(400 + i);
     const x = -122 + (r() - 0.5) * 8, z = 2 + (r() - 0.5) * 8, yaw = r() * 6.28;
-    group.add(place(sh.root, x, z, yaw));
-    actors.push({ update(t) { sh.head.rotation.x = 0.6 + 0.4 * Math.sin(t * 0.5 + i * 2); } });
+    add(place(sh.root, x, z, yaw));
+    act({ update(t) { sh.head.rotation.x = 0.6 + 0.4 * Math.sin(t * 0.5 + i * 2); } });
   }
-  emitters.push({ name: 'baa', period: 9.7, offset: 3, x: -122, z: 2 });
+  emit({ name: 'baa', period: 9.7, offset: 3, x: -122, z: 2 });
 
   // --- Palisade, mounds, ship setting, church, stones --------------------
-  group.add(palisade());
-  group.add(mounds());
-  group.add(shipSetting(timeline.curve.getSpacedPoints(300), shadows));
+  zone = 'always';
+  add(palisade());
+  add(mounds());
+  add(shipSetting(timeline.routePoints(), shadows));
   const sh = (x, z, sx, sz, yaw, h) => shadows.push([x, groundHeight(x, z), z, sx, sz, yaw, h]);
   sh(-96, 0, 27, 11, 0, 4); sh(-78, 38, 23, 10, 0.06, 4); sh(-110, 36, 7, 6, 0.3, 2); sh(-64, 4, 7, 6, -0.4, 2);
   sh(SITES.church.x, SITES.church.z - 1, 10, 17, 0, 5); sh(SITES.stone.x, SITES.stone.z, 2.4, 2.4, 0, 2.4);
   for (let z = -110; z <= 110; z += 6) if (z < SITES.gate[0] - 2 || z > SITES.gate[1] + 2) sh(SITES.palisadeX, z, 3.2, 7, 0, 3);
   sh(-29, 35, 6, 3.5, 0, 0.5); sh(-33, 40, 2.6, 3.5, 0.4, 1); sh(-106, 29, 3, 2, 0.2, 0.8);
-  group.add(staticShadows(shadows));
-  group.add(church());
-  group.add(runestones());
+  add(staticShadows(shadows));
+  add(church());
+  add(runestones());
 
   // Turf carriers walking a loop onto the south mound.
+  zone = 'mounds';
   const turfLoop = loopPath([[-28, 36.5], [-21, 40], [-11, 43], [-5, 45], [-10, 47], [-20, 44], [-27, 39]]);
   const turfGeo = paint(G.box(0.5, 0.15, 0.38), 0x5e8a38, { rand: rng(500) });
   for (let k = 0; k < 4; k++) {
@@ -557,8 +566,8 @@ export function buildJelling(scene, timeline) {
     const turf = new THREE.Mesh(turfGeo, MAT.world);
     turf.position.set(0, 1.25, 0.38);
     w.body.add(turf);
-    group.add(w.root);
-    actors.push({ update(t) {
+    add(w.root);
+    act({ update(t) {
       const s = t * 0.85 + k * turfLoop.L / 4;
       const p = turfLoop.at(s);
       w.root.position.set(p.x, groundHeight(p.x, p.z) + southMoundHeight(p.x, p.z), p.z);
@@ -572,6 +581,7 @@ export function buildJelling(scene, timeline) {
     } });
   }
 
+  zone = 'stone';
   // --- The runestone scene ----------------------------------------------
   const S = SITES.stone;
   const n = new THREE.Vector2(-0.7071, 0.7071), tg = new THREE.Vector2(0.7071, 0.7071);
@@ -583,9 +593,9 @@ export function buildJelling(scene, timeline) {
   mason.armR.hand.add(tool('hammer'));
   const chisel = tool('chisel'); mason.armL.hand.add(chisel);
   const [mx, mz] = at(0.75, 0.35);
-  group.add(place(mason.root, mx, mz, faceYaw(mx, mz, S.x, S.z)));
+  add(place(mason.root, mx, mz, faceYaw(mx, mz, S.x, S.z)));
   const STRIKE = 1.25;
-  actors.push({ update(t) {
+  act({ update(t) {
     standPose(mason, t, 3);
     mason.head.rotation.y = 0;
     mason.legL.rotation.x = -0.5; mason.legR.rotation.x = 0.3; // kneeling-ish stance
@@ -600,13 +610,13 @@ export function buildJelling(scene, timeline) {
       mason.head.rotation.y = -0.9 * smooth((t - timeline.dogBark) / 1.2);
     }
   } });
-  emitters.push({ name: 'clink', period: STRIKE, offset: STRIKE * 0.8, x: mx, z: mz, until: timeline.dogBark });
+  emit({ name: 'clink', period: STRIKE, offset: STRIKE * 0.8, x: mx, z: mz, until: timeline.dogBark });
 
   // King Harald in a blue cloak, gesturing at the stone.
   const harald = makePerson({ tunic: 0xa3322a, pants: 0x3f3a52, cloak: 0x2f5fa8, hair: 0xb98a4a, beard: 0xb98a4a, circlet: true, sleeve: 0xa3322a, seed: 40 });
   const [hx, hz] = at(1.9, -2.5);
-  group.add(place(harald.root, hx, hz, faceYaw(hx, hz, S.x, S.z)));
-  actors.push({ update(t) {
+  add(place(harald.root, hx, hz, faceYaw(hx, hz, S.x, S.z)));
+  act({ update(t) {
     standPose(harald, t, 4);
     const g = (t % 14) / 14;
     harald.armR.rotation.x = g > 0.2 && g < 0.45 ? -1.3 * smooth((g - 0.2) / 0.05) * (1 - smooth((g - 0.4) / 0.05)) : 0.05;
@@ -619,26 +629,26 @@ export function buildJelling(scene, timeline) {
   const priest = makePerson({ robe: 0x3b3b46, tunic: 0x3b3b46, pants: 0x3b3b46, hair: 0x9a9a9a, seed: 50 });
   priest.armR.hand.add(tool('cross'));
   const [px, pz] = at(2.8, -3.9);
-  group.add(place(priest.root, px, pz, faceYaw(px, pz, S.x, S.z)));
-  actors.push({ update(t) { standPose(priest, t, 5); priest.armR.rotation.x = -0.3; priest.armL.rotation.x = -0.9; priest.armL.rotation.z = 0.5; } });
+  add(place(priest.root, px, pz, faceYaw(px, pz, S.x, S.z)));
+  act({ update(t) { standPose(priest, t, 5); priest.armR.rotation.x = -0.3; priest.armL.rotation.x = -0.9; priest.armL.rotation.z = 0.5; } });
 
   // Two guards by the church.
   for (let k = 0; k < 2; k++) {
     const g = makePerson({ tunic: 0x5a6a3a, pants: 0x3a3226, hair: 0x4a3018, beard: 0x4a3018, shield: k ? 0xc23b2e : 0xd9b44a, seed: 60 + k });
     const sp = tool('spear'); sp.rotation.x = 0.35; g.armR.hand.add(sp);
     const x = SITES.church.x + (k ? 2.4 : -2.4), z = SITES.church.z + 6.2;
-    group.add(place(g.root, x, z, 0));
-    actors.push({ update(t) { standPose(g, t, 6 + k); g.armR.rotation.x = -0.35; if (t > timeline.dogBark) g.head.rotation.y = -0.6 * smooth((t - timeline.dogBark - 1) / 1.5); } });
+    add(place(g.root, x, z, 0));
+    act({ update(t) { standPose(g, t, 6 + k); g.armR.rotation.x = -0.35; if (t > timeline.dogBark) g.head.rotation.y = -0.6 * smooth((t - timeline.dogBark - 1) / 1.5); } });
   }
 
   // The dog: sniffs around, notices the capsule, runs toward it and barks.
   const dog = makeDog();
-  group.add(dog.root);
+  add(dog.root);
   const capsule = {};
   const barks = [0, 1.1, 2.4, 4.3, 5.2].map((o) => timeline.dogBark + o);
-  actors.push({ update(t) {
+  act({ update(t) {
     const home = { x: 4.5 + Math.cos(t * 0.35) * 1.6, z: -8.5 + Math.sin(t * 0.35) * 1.2 };
-    timeline.state(t, false, capsule);
+    timeline.poseAtWorld(t, capsule);
     const run = smooth((t - timeline.dogNotice - 0.8) / 2.0);
     // Target: below the capsule's position when it noticed us, slightly offset.
     const tx = 1.2, tz = -11.2;
@@ -657,18 +667,22 @@ export function buildJelling(scene, timeline) {
     dog.head.rotation.x = -look - bark * 0.25;
     dog.jaw.rotation.x = bark * 0.6;
   } });
-  for (const b of barks) emitters.push({ name: 'bark', once: b, follow: dog.root });
+  for (const b of barks) emit({ name: 'bark', once: b, follow: dog.root });
 
   // Birds over the village and the fields (sound only).
-  emitters.push({ name: 'bird', period: 6.3, offset: 1, x: -120, z: -20 });
-  emitters.push({ name: 'bird', period: 7.7, offset: 4, x: -40, z: 70 });
-  emitters.push({ name: 'bird', period: 8.9, offset: 2, x: 30, z: -40 });
+  zone = 'always';
+  emit({ name: 'bird', period: 6.3, offset: 1, x: -120, z: -20 });
+  emit({ name: 'bird', period: 7.7, offset: 4, x: -40, z: 70 });
+  emit({ name: 'bird', period: 8.9, offset: 2, x: 30, z: -40 });
 
   scene.add(group);
   return {
     group,
-    update(t) { for (const a of actors) a.update(t); },
+    zones,
     emitters,
+    // Show only the zones the current stop can see.
+    setZones(list) { for (const k in zones) zones[k].visible = k === 'always' || list.includes(k); },
+    update(t) { for (const a of actors) if (zones[a.zone].visible) a.update(t); },
   };
 }
 

@@ -79,7 +79,7 @@ function cabinShell() {
     b.add(G.cyl(0.05, 0.05, SH - 0.12, 8), BRASS, { pos: [p.x, (SH - 0.12) / 2, p.z] });
     b.add(G.cyl(0.2, 0.22, 0.03, 8), BRONZE, { pos: [p.x, 0.015, p.z] });
     b.add(G.cyl(0.016, 0.016, 0.88, 6), BRASS, { pos: [p.x, 0.44, p.z - 0.6] });
-    b.add(G.box(0.47, 0.31, 0.03), IRON, { pos: [p.x, 0.97, p.z - 0.6], rot: [-0.55, 0, 0] });
+    b.add(G.box(0.53, 0.35, 0.03), IRON, { pos: [p.x, 0.97, p.z - 0.6], rot: [-0.55, 0, 0] });
   }
   const shell = b.mesh(MAT.cabin);
 
@@ -191,43 +191,59 @@ function sign() {
   };
 }
 
-// Tablet text shared by all seats (same texture on every tablet).
+// Tablet: captions plus buttons for choosing where to go. Same texture on every seat for now.
+const TW = 1024, TH = 660, BTN_Y = 528, BTN_H = 108;
 function tablets() {
-  const { ctx, tex } = canvasTexture(1024, 660);
+  const { ctx, tex } = canvasTexture(TW, TH);
   const mat = new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false });
-  const geo = new THREE.PlaneGeometry(0.42, 0.27);
+  const geo = new THREE.PlaneGeometry(0.48, 0.31);
   const group = new THREE.Group();
+  const meshes = [];
   for (let n = 1; n <= SEAT_COUNT; n++) {
     const p = seatPosition(n);
     const m = new THREE.Mesh(geo, mat);
     m.position.set(p.x, 0.975, p.z - 0.585);
     m.rotation.x = -0.55;
-    group.add(m);
+    group.add(m); meshes.push(m);
   }
-  let last = '';
+  let last = '', rects = [];
   return {
     group,
-    draw(caption, chapters, chapterIdx) {
-      const key = caption.key + '|' + chapterIdx;
+    meshFor(seat) { return meshes[seat - 1]; },
+    // uv on the tablet -> button id (only active buttons).
+    buttonAt(uv) {
+      const x = uv.x * TW, y = (1 - uv.y) * TH;
+      const r = rects.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h && b.state !== 'off' && b.state !== 'here');
+      return r ? r.id : null;
+    },
+    draw(caption, buttons, debugLine) {
+      const key = caption.key + '|' + buttons.map((b) => b.id + b.state).join() + '|' + debugLine;
       if (key === last) return; last = key;
-      ctx.fillStyle = '#f4efe3'; ctx.fillRect(0, 0, 1024, 660);
-      ctx.fillStyle = '#16323a'; ctx.fillRect(0, 0, 1024, 70);
-      ctx.font = 'bold 28px system-ui, sans-serif'; ctx.textBaseline = 'middle';
-      let x = 30;
-      chapters.forEach((c, i) => {
-        const label = (i < chapterIdx ? '✓ ' : '') + c.name;
-        ctx.fillStyle = i === chapterIdx ? '#ffc857' : i < chapterIdx ? '#7fe0d4' : '#6c8a91';
-        ctx.fillText(label, x, 36);
-        x += ctx.measureText(label).width + 30;
-      });
+      ctx.fillStyle = '#f4efe3'; ctx.fillRect(0, 0, TW, TH);
+      ctx.fillStyle = '#16323a'; ctx.fillRect(0, 0, TW, 60);
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#c9a24a'; ctx.font = 'bold 26px system-ui, sans-serif';
+      ctx.fillText('TIDSMASKINEN · REJSE 1 · JELLING', 30, 31);
+      if (debugLine) { ctx.fillStyle = '#7fe0d4'; ctx.font = '22px ui-monospace, Consolas, monospace'; ctx.textAlign = 'right'; ctx.fillText(debugLine, TW - 24, 31); ctx.textAlign = 'left'; }
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = caption.title.startsWith('!') ? '#b5470b' : '#16323a';
-      ctx.font = 'bold 62px system-ui, sans-serif';
-      ctx.fillText(caption.title.replace(/!/g, '⚠').trim(), 44, 160);
-      ctx.fillStyle = '#26363b'; ctx.font = '42px system-ui, sans-serif';
-      wrapText(ctx, caption.body, 44, 236, 936, 56);
-      ctx.fillStyle = '#8a8270'; ctx.font = 'italic 26px system-ui, sans-serif';
-      ctx.fillText('Billeder fra tiden: kommer senere', 44, 630);
+      ctx.font = 'bold 56px system-ui, sans-serif';
+      ctx.fillText(caption.title.replace(/!/g, '⚠').trim(), 40, 130);
+      ctx.fillStyle = '#26363b'; ctx.font = '38px system-ui, sans-serif';
+      wrapText(ctx, caption.body, 40, 192, 944, 50);
+      // Buttons.
+      const n = buttons.length, gap = 14, w = (TW - 48 - gap * (n - 1)) / n;
+      rects = buttons.map((b, i) => ({ ...b, x: 24 + i * (w + gap), y: BTN_Y, w, h: BTN_H }));
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const b of rects) {
+        const fill = { on: '#16323a', seen: '#3d5a62', here: '#c9a24a', off: '#d8d1c0' }[b.state];
+        ctx.fillStyle = fill;
+        ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 18); ctx.fill();
+        ctx.fillStyle = b.state === 'here' ? '#1a1a1a' : b.state === 'off' ? '#a39b88' : '#f4efe3';
+        ctx.font = `bold ${n > 2 ? 30 : 40}px system-ui, sans-serif`;
+        ctx.fillText((b.state === 'seen' ? '✓ ' : '') + b.label, b.x + b.w / 2, b.y + b.h / 2);
+      }
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       tex.needsUpdate = true;
     },
   };

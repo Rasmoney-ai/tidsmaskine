@@ -9,11 +9,13 @@ import { buildHands } from './hands.js';
 import { Audio } from './audio.js';
 import { initUI } from './ui.js';
 import { buildLife } from './life.js';
+import { Perf } from './perf.js';
 
 const params = new URLSearchParams(location.search);
 const state = {
   seat: Math.min(Math.max(parseInt(params.get('seat'), 10) || 1, 1), SEAT_COUNT),
   comfort: params.get('comfort') === '1',
+  debug: params.get('debug') === '1',
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -42,107 +44,160 @@ placeRig(capsule.rig, state.seat);
 const hands = buildHands(renderer, capsule.rig);
 const clock = new LocalClock(-COUNTDOWN);
 const audio = new Audio();
+const perf = new Perf(renderer, world);
 
-// Desktop look-around.
+// Desktop look-around (drag) and clicks on the tablet.
 const look = { yaw: 0, pitch: -0.12 };
 let drag = null;
-renderer.domElement.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
-addEventListener('pointerup', () => { drag = null; });
+renderer.domElement.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; });
+addEventListener('pointerup', (e) => {
+  if (drag && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 5) clickAt(e.clientX, e.clientY);
+  drag = null;
+});
 addEventListener('pointermove', (e) => {
   if (!drag) return;
   look.yaw += (e.clientX - drag.x) * 0.004; look.pitch += (e.clientY - drag.y) * 0.004;
   look.pitch = Math.max(-1.3, Math.min(1.3, look.pitch));
-  drag = { x: e.clientX, y: e.clientY };
+  drag.x = e.clientX; drag.y = e.clientY;
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
+const raycaster = new THREE.Raycaster();
+function pressRay(origin, dir) {
+  raycaster.set(origin, dir);
+  const hit = raycaster.intersectObject(capsule.tablets.meshFor(state.seat), false)[0];
+  if (!hit) return false;
+  const id = capsule.tablets.buttonAt(hit.uv);
+  if (id) { app.press(id); audio.play('beep', 0.5); }
+  return !!id;
+}
+function clickAt(x, y) {
+  raycaster.setFromCamera(new THREE.Vector2((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1), camera);
+  pressRay(raycaster.ray.origin.clone(), raycaster.ray.direction.clone());
+}
+// XR: pinch (hand tracking) or trigger (controller) points a ray at the tablet.
+function xrSelect(e) {
+  const pose = e.frame.getPose(e.inputSource.targetRaySpace, renderer.xr.getReferenceSpace());
+  if (!pose) return;
+  const m = new THREE.Matrix4().fromArray(pose.transform.matrix).premultiply(capsule.rig.matrixWorld);
+  const origin = new THREE.Vector3().setFromMatrixPosition(m);
+  const dir = new THREE.Vector3(0, 0, -1).transformDirection(m);
+  pressRay(origin, dir);
+}
+
 const app = {
-  timeline, clock, audio, state,
-  restart(play = true) { clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
+  timeline, clock, audio, state, look, renderer, perf, scene,
+  restart(play = true) { timeline.reset(); clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
   setSeat(n) { state.seat = n; placeRig(capsule.rig, n); },
   setComfort(on) { state.comfort = on; },
-  jumpChapter(dir) {
-    const t = clock.t, ch = timeline.chapters;
-    let i = timeline.chapterIndex(Math.max(t, 0));
-    if (dir < 0 && t - ch[i].t < 2) i -= 1; else if (dir > 0) i += 1;
-    i = Math.max(0, Math.min(ch.length - 1, i));
-    clock.seek(ch[i].t + (dir > 0 || i > 0 ? 0.01 : 0));
+  // Panel buttons: a stop id, 'home' or 'again'.
+  press(id) {
+    if (id === 'again') return app.restart();
+    const tau = Math.max(clock.t, 0);
+    const changed = id === 'home' ? timeline.goHome(tau) : timeline.choose(id, tau);
+    if (changed) clock.seek(0);
   },
-  seekBy(dt) { clock.seek(Math.max(-COUNTDOWN, Math.min(timeline.duration, clock.t + dt))); },
+  nextStop(dir) {
+    const order = timeline.order, cur = order.indexOf(timeline.clipId);
+    const i = cur < 0 ? (dir > 0 ? 0 : order.length - 1) : cur + dir;
+    if (i >= 0 && i < order.length) app.press(order[i]); else if (i >= order.length) app.press('home');
+  },
+  seekBy(dt) { clock.seek(Math.max(timeline.clipId === 'intro' ? -COUNTDOWN : 0, Math.min(timeline.clip.dur - 0.01, clock.t + dt))); },
+  xrSelect,
 };
-app.look = look;
-app.renderer = renderer;
 window.app = app;
 initUI(app, renderer);
 
 // Sound cues -----------------------------------------------------------
-let lastT = clock.t;
-const tmp = {};
-function emitterGain(x, z, st, vx, vz, yaw) {
-  const dx = x - vx, dz = z - vz, d = Math.hypot(dx, dz);
+let lastTau = clock.t, lastW = 0, lastClip = timeline.clipId;
+function emitterGain(x, z, st) {
+  const dx = x - st.x, dz = z - st.z, d = Math.hypot(dx, dz);
   const gain = (1.4 / (1 + d / 5)) * (1 - st.mist);
-  const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+  const lx = dx * Math.cos(st.yaw) - dz * Math.sin(st.yaw);
   return { gain: Math.min(gain, 1), pan: Math.max(-0.9, Math.min(0.9, lx / (d + 1))) };
 }
 
-function sounds(t, st) {
-  const dt = t - lastT;
-  if (clock.playing && dt > 0 && dt < 0.5) {
-    for (const k of [-3, -2, -1]) if (lastT < k && t >= k) audio.play('beep', 0.8);
-    if (lastT < 0 && t >= 0) audio.play('go', 0.8);
-    for (const s of timeline.sounds) if (s.t > lastT && s.t <= t) audio.play(s.name, 0.9);
+function sounds(tau, st) {
+  const sameClip = lastClip === timeline.clipId;
+  const dt = tau - lastTau, dw = st.w - lastW;
+  if (clock.playing && sameClip && dt > 0 && dt < 0.5) {
+    if (timeline.clipId === 'intro') {
+      for (const k of [-3, -2, -1]) if (lastTau < k && tau >= k) audio.play('beep', 0.8);
+      if (lastTau < 0 && tau >= 0) audio.play('go', 0.8);
+    }
+    for (const [o, name] of timeline.sounds()) if (o > lastTau && o <= tau) audio.play(name, 0.9);
+  }
+  if (clock.playing && dw > 0 && dw < 0.5) {
     for (const e of jelling.emitters) {
+      if (!jelling.zones[e.zone].visible) continue;
       let fire = false;
-      if (e.once !== undefined) fire = e.once > lastT && e.once <= t;
-      else fire = Math.floor((t - e.offset) / e.period) > Math.floor((lastT - e.offset) / e.period) && (!e.until || t < e.until);
+      if (e.once !== undefined) fire = e.once > lastW && e.once <= st.w;
+      else fire = Math.floor((st.w - e.offset) / e.period) > Math.floor((lastW - e.offset) / e.period) && (!e.until || st.w < e.until);
       if (!fire) continue;
       const x = e.follow ? e.follow.position.x : e.x, z = e.follow ? e.follow.position.z : e.z;
-      const { gain, pan } = emitterGain(x, z, st, st.x, st.z, st.yaw);
+      const { gain, pan } = emitterGain(x, z, st);
       audio.play(e.name, e.name === 'bark' ? Math.max(gain, 0.5) : gain, pan);
     }
   }
-  lastT = t;
+  lastTau = tau; lastW = st.w; lastClip = timeline.clipId;
   audio.setLevels({ hum: clock.playing ? 1 : 0.3, outside: 1 - st.mist, jump: st.jumping ? st.jumpProgress : 0 });
+}
+
+// Panel buttons for the current state.
+function buttons() {
+  const id = timeline.clipId, c = timeline.clip;
+  if (timeline.finished) return [{ id: 'again', label: 'Rejs igen', state: 'on' }];
+  const travelling = c.kind === 'stop' || c.kind === 'hop';
+  const list = timeline.order.map((s) => ({
+    id: s, label: timeline.stops[s].name,
+    state: s === id || (id === 'hop' && timeline.target === s) ? 'here' : !travelling && id !== 'intro' && id !== 'jumpPast' ? 'off' : timeline.visited.has(s) ? 'seen' : 'on',
+  }));
+  list.push({ id: 'home', label: 'Rejs hjem', state: travelling ? 'on' : 'off' });
+  return list;
 }
 
 // Frame loop -------------------------------------------------------------
 const st = {};
 const fogBase = new THREE.Color(WORLD.FOG_COLOR), fogLab = new THREE.Color(WORLD.MIST_LAB), fogCalm = new THREE.Color(WORLD.MIST_STEALTH);
-const fogTunnel = new THREE.Color(0x3a3a8a);
+const fogTunnel = new THREE.Color(0x3a3a8a), fogTarget = new THREE.Color();
 
-renderer.setAnimationLoop(() => {
-  let t = clock.t;
-  if (t >= timeline.duration && clock.playing) { clock.pause(); clock.seek(timeline.duration); t = timeline.duration; }
-  timeline.state(t, state.comfort, st);
+renderer.setAnimationLoop((now) => {
+  let tau = clock.t;
+  if (clock.playing && tau >= timeline.clip.dur) {
+    if (timeline.finished) { clock.pause(); clock.seek(timeline.clip.dur); tau = timeline.clip.dur; }
+    else if (timeline.advance(tau)) { clock.seek(0); tau = 0; }
+  }
+  timeline.state(tau, state.comfort, st);
 
   capsule.vehicle.position.set(st.x, CAPSULE.HOVER, st.z);
   capsule.vehicle.rotation.y = st.yaw;
-  jelling.update(Math.max(t, 0));
-  life.update(Math.max(t, 0));
+  jelling.setZones(st.zones);
+  jelling.update(st.w);
+  life.update(st.w, st.zones);
 
   const u = capsule.mist.material.uniforms;
-  u.uOpacity.value = st.mist; u.uTunnel.value = st.tunnel; u.uLab.value = st.lab; u.uTime.value = t;
+  u.uOpacity.value = st.mist; u.uTunnel.value = st.tunnel; u.uLab.value = st.lab; u.uTime.value = st.w + tau;
   capsule.mist.visible = st.mist > 0.001;
   world.visible = jelling.group.visible = st.mist < 0.999;
-  const target = tmp.c || (tmp.c = new THREE.Color());
-  target.copy(fogCalm).lerp(fogLab, st.lab).lerp(fogTunnel, st.tunnel);
-  scene.fog.color.copy(fogBase).lerp(target, st.mist);
+  fogTarget.copy(fogCalm).lerp(fogLab, st.lab).lerp(fogTunnel, st.tunnel);
+  scene.fog.color.copy(fogBase).lerp(fogTarget, st.mist);
   scene.fog.density = WORLD.FOG_DENSITY + (0.3 - WORLD.FOG_DENSITY) * st.mist * st.mist;
 
   const place = st.jumping ? 'TIDSREJSE' : st.year === 2026 ? 'LABORATORIET' : 'JELLING';
-  capsule.sign.draw(st.year, place, st.alarm, t);
-  capsule.tablets.draw(st.caption, timeline.chapters, st.chapter);
-  capsule.animateCore(t, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
+  capsule.sign.draw(st.year, place, st.alarm, st.w);
+  capsule.tablets.draw(st.caption, buttons(), state.debug ? perf.summary() : '');
+  capsule.animateCore(st.w + tau, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
 
   if (!renderer.xr.isPresenting) {
     camera.position.set(0, CAPSULE.DESKTOP_EYE, 0);
     camera.rotation.set(look.pitch, look.yaw, 0, 'YXZ');
   }
   hands.update();
-  sounds(t, st);
-  app.onFrame && app.onFrame(t, st);
+  sounds(tau, st);
+  app.onFrame && app.onFrame(tau, st);
   renderer.render(scene, camera);
+  perf.frame(now, renderer.xr.isPresenting);
 });

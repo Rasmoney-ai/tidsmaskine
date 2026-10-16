@@ -190,7 +190,7 @@ function trees(rand) {
       const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * r;
       spots.push([cx + Math.cos(a) * d, cz + Math.sin(a) * d]);
     }
-  for (let i = 0; i < 160; i++) { const a = rand() * Math.PI * 2, d = 180 + rand() * 160; spots.push([CENTER_X + Math.cos(a) * d, Math.sin(a) * d]); }
+  for (let i = 0; i < 100; i++) { const a = rand() * Math.PI * 2, d = 180 + rand() * 160; spots.push([CENTER_X + Math.cos(a) * d, Math.sin(a) * d]); }
   const ok = spots.filter(([x, z]) => pathDistance(x, z) > 8 && fieldStripe(x, z) < 0 && Math.hypot(x - POND.x, z - POND.z) > POND.r + 4 && !(x > -60 && x < 30 && z > -95 && z < 70));
   const birches = ok.filter((_, i) => i % 4 === 1), oaks = ok.filter((_, i) => i % 4 !== 1);
   const mesh = new THREE.InstancedMesh(geo, MAT.world, oaks.length);
@@ -214,6 +214,7 @@ function trees(rand) {
   });
   const g = new THREE.Group();
   g.add(mesh, birch, staticShadows(shadows));
+  g.instanced = [mesh, birch];
   return g;
 }
 
@@ -240,24 +241,21 @@ export function buildWorld(scene, avoid) {
   const rand = rng(42);
   group.add(terrainMesh(300, 100, false));
   group.add(terrainMesh(1000, 40, true));
-  group.add(trees(rand));
+  const forest = trees(rand);
+  group.add(forest);
+  // Small decoration that the automatic quality control may hide first.
+  const decor = new THREE.Group();
+  group.add(decor);
 
   const free = (x, z) => pathDistance(x, z) > 1.8 && !avoid(x, z);
   const free2 = (x, z) => free(x, z) && fieldStripe(x, z) < 0 && Math.hypot(x - POND.x, z - POND.z) > POND.r + 1;
-  const tb = new Builder(8);
-  for (let i = 0; i < 4; i++) tb.add(G.cone(0.05, 0.55 + (i % 2) * 0.2, 3), 0x6e8c3c, { pos: [Math.cos(i * 1.7) * 0.08, 0.27, Math.sin(i * 1.7) * 0.08], rot: [Math.cos(i * 2.3) * 0.3, 0, Math.sin(i * 2.3) * 0.3] });
-  const tuft = tb.geometry();
-  group.add(scatter(tuft, 4200, rand, free2, [0.6, 1.5], (c) => c.setRGB(0.85 + rand() * 0.3, 0.85 + rand() * 0.25, 0.7 + rand() * 0.3)));
-  const flower = paint(G.ball(0.06, 0), 0xffffff, { pos: [0, 0.32, 0] });
-  group.add(scatter(flower, 900, rand, free2, [0.8, 1.5], (c) => c.set([0xfff2a8, 0xffffff, 0xc9a3f0, 0xffd27a, 0xe8584a][Math.floor(rand() * 5)])));
-  // Barley in the strip fields.
-  const stalk = new Builder(9);
-  for (let i = 0; i < 3; i++) stalk.add(G.cone(0.04, 0.9, 3), 0xd9b866, { pos: [i * 0.12 - 0.12, 0.45, (i % 2) * 0.1], rot: [0, 0, (i - 1) * 0.12] });
-  group.add(scatter(stalk.geometry(), 3200, rand, (x, z) => { const s = fieldStripe(x, z); return s >= 0 && s % 3 !== 1; }, [0.8, 1.2], (c) => c.setRGB(0.9 + rand() * 0.2, 0.85 + rand() * 0.2, 0.7 + rand() * 0.3)));
+  // No grass blades: the meadow is colored ground faces. A few flowers add life.
+  const flower = paint(G.ball(0.07, 0), 0xffffff, { pos: [0, 0.12, 0] });
+  decor.add(scatter(flower, 400, rand, free2, [0.8, 1.5], (c) => c.set([0xfff2a8, 0xffffff, 0xc9a3f0, 0xffd27a, 0xe8584a][Math.floor(rand() * 5)])));
   // Bushes.
   const bush = new Builder(10);
   bush.add(G.ball(0.9, 0), 0x4f6e32, { pos: [0, 0.6, 0] }).add(G.ball(0.7, 0), 0x5a7a38, { pos: [0.7, 0.5, 0.2] }).add(G.ball(0.6, 0), 0x47652d, { pos: [-0.6, 0.45, -0.2] });
-  group.add(scatter(bush.geometry(), 220, rand, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.7, 1.6]));
+  decor.add(scatter(bush.geometry(), 220, rand, (x, z) => free2(x, z) && Math.hypot(x - CENTER_X, z) > 70, [0.7, 1.6]));
   // Pond with reeds.
   const water = new THREE.Mesh(new THREE.CircleGeometry(POND.r + 1.2, 28).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x4f7f95 }));
   water.position.set(POND.x, -0.32, POND.z);
@@ -278,7 +276,7 @@ export function buildWorld(scene, avoid) {
   }
   group.add(reeds);
   const rock = paint(G.dodeca(0.4), 0x8d8a83, { scale: [1, 0.6, 1] });
-  group.add(scatter(rock, 120, rand, free, [0.5, 1.8]));
+  decor.add(scatter(rock, 120, rand, free, [0.5, 1.8]));
 
   scene.add(group);
   scene.add(sky());
@@ -289,5 +287,7 @@ export function buildWorld(scene, avoid) {
   const sun = new THREE.DirectionalLight(0xffe4bd, 3.2);
   sun.position.copy(SUN_DIR).multiplyScalar(100);
   scene.add(hemi, sun);
+  group.decor = decor;
+  group.forest = forest;
   return group;
 }

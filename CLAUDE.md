@@ -20,21 +20,26 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 
 ## Arkitektur
 
-- `timeline.js`: Rute, stop, tekster og lydsignaler. Alt beregnes ud fra rejsens tid `t`. Samme `t` giver samme billede.
+- `timeline.js`: Rejsen er en række klip: intro, tidsspring, tre steder (stop), korte tidshop og tidsspring hjem. Tilstanden er (klip, tid i klippet). Samme tilstand giver samme billede. Ved hvert sted glider kapslen kort og står så stille. Man vælger sted på tabletten, og ellers kører stederne i rækkefølge.
 - `clock.js`: Udskifteligt ur (lokalt nu, senere lydspor eller fælles server-ur).
 - `capsule.js`: Ottekantet glaskapsel ("Jules Verne møder Villeneuve": messing, læder, mørk kuppel med ovenlys og armillarsfære) med 10 sæder (5 rækker à 2), skilt med årstal, tablets og tågeskal til tidsspring/komfort.
-- `world.js`: Terræn, himmel, træer. `jelling.js`: Rejse 1 (bygninger, figurer, hund). `people.js`: figurbygger.
+- `world.js`: Terræn (ingen græsstrå, kun farvede flader), himmel, træer. `jelling.js`: Rejse 1, opdelt i zoner (village, mounds, stone, always). Hvert sted viser og animerer kun sine zoner. `people.js`: figurbygger (pladsholdere indtil modellerne fra `MODELLER.md` kommer).
 - `shadows.js`: Falske bløde skygger. `life.js`: Fugle og sommerfugle.
+- `perf.js`: Måler (`?debug=1`) og sikkerhedsnet, der skruer ned for detaljer, hvis billedfrekvensen falder i VR.
 - `audio.js`: Pladsholderlyd med Web Audio. `hands.js`: Brugerens hænder. `ui.js`: Startside og taster.
 - Nye rejser: én fil pr. sted/tid som `jelling.js` plus et manuskript i tidslinjen.
 
 ## Komfort (ufravigeligt)
 
 - Kabinen er altid synlig og står stille i forhold til brugeren. Horisonten er vandret.
-- Højst 2 m/s og under 10° drejning pr. sekund, bløde starter og stop. Grænser i `config.js`.
+- Kapslen glider kun kort og langsomt (ca. 1,2 m/s, lige linje, bløde starter og stop). Ingen rotation. Grænser i `config.js`.
 - Tidsspring: lyset skifter, men mønstret bevæger sig ikke (ingen tunnel-fart).
-- Komforttilstand: tåge udenfor, mens kapslen flytter sig.
-- Mindst 72 fps på Quest 3: få draw calls, ingen realtidsskygger.
+- Komforttilstand: kapslen står helt stille ved hvert sted.
+- Mindst 72 fps på Quest 3: få draw calls, ingen realtidsskygger. Budget pr. sted: ca. 150.000 trekanter og 80 tegneopkald (`PERF` i `config.js`). Tjek med `?debug=1`.
+
+## 3D-modeller
+
+- Bestillingslisten står i `MODELLER.md`: GLB, ét mesh og ét materiale pr. model, figurer i T-pose med Mixamo-skelet. Til at indlæse dem skal three.js' GLTFLoader (r170) lægges i `vendor/` (spørg først).
 
 ## Idéer til senere
 

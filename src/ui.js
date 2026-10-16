@@ -37,7 +37,7 @@ export function initUI(app, renderer) {
     start.hidden = true; hud.hidden = true;
     // Re-centering with the Meta button: local-floor origin moves with the user; the cabin follows the rig.
     renderer.xr.getReferenceSpace()?.addEventListener('reset', () => console.info('Reference space reset'));
-    session.addEventListener('select', () => { if (app.clock.t >= app.timeline.duration) app.restart(); });
+    session.addEventListener('select', (e) => app.xrSelect(e));
     session.addEventListener('end', () => { app.clock.pause(); start.hidden = false; });
     app.restart();
   };
@@ -55,8 +55,9 @@ export function initUI(app, renderer) {
       case 'Space': app.clock.toggle(); break;
       case 'ArrowRight': app.seekBy(10); break;
       case 'ArrowLeft': app.seekBy(-10); break;
-      case 'KeyN': app.jumpChapter(1); break;
-      case 'KeyP': app.jumpChapter(-1); break;
+      case 'KeyN': app.nextStop(1); break;
+      case 'KeyP': app.nextStop(-1); break;
+      case 'KeyJ': app.press('home'); break;
       case 'KeyR': app.restart(); break;
       case 'KeyC': comfort.checked = !comfort.checked; app.setComfort(comfort.checked); break;
       case 'KeyH': hud.classList.toggle('small'); break;
@@ -72,9 +73,9 @@ export function initUI(app, renderer) {
   const status = $('status');
   app.onFrame = (t, st) => {
     if (hud.hidden) return;
-    const m = Math.floor(Math.max(t, 0) / 60), s = Math.floor(Math.max(t, 0) % 60);
-    const total = app.timeline.duration;
-    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${m}:${String(s).padStart(2, '0')} / ${Math.floor(total / 60)}:${String(Math.floor(total % 60)).padStart(2, '0')}`
-      + ` · ${app.timeline.chapters[st.chapter].name} · sæde ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`;
+    const tl = app.timeline, c = tl.clip;
+    const name = c.name || { intro: 'Afgang', jumpPast: 'Tidsspring', hop: 'Tidshop', jumpHome: 'Tidsspring hjem', home: 'Hjemme' }[tl.clipId];
+    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)}/${c.dur} s · sæde ${app.state.seat}${app.state.comfort ? ' · komfort' : ''}`
+      + (app.state.debug ? ` · ${app.perf.summary()}` : '');
   };
 }

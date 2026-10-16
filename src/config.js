@@ -41,3 +41,10 @@ export const WORLD = {
   MIST_LAB: 0xe8f4f2,       // bright "time lab" color around the capsule at home
   MIST_STEALTH: 0xc9d6da,   // calm comfort-mode mist
 };
+
+// Performance budget per stop (a cautious guess for Quest 3) and the frame-rate safety net.
+export const PERF = {
+  BUDGET_TRIANGLES: 150000,
+  BUDGET_CALLS: 80,
+  MIN_FPS: 66,
+};
