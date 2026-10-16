@@ -493,7 +493,7 @@ export function buildJelling(scene, timeline, models = {}) {
   act({ update(t) { fire.flame.scale.set(1 + 0.12 * Math.sin(t * 11), 1 + 0.25 * Math.sin(t * 7.3) + 0.1 * Math.sin(t * 17), 1 + 0.12 * Math.cos(t * 9)); } });
 
   // Weaver at the loom.
-  const weaver = makePerson({ dress: 0x4f7a8c, apron: 0xc9a86b, brooch: 0xd9b44a, hair: 0xc68b3e, longHair: true, headscarf: 0xe8dcc0, skin: SKIN(1) });
+  const weaver = makePerson({ dress: 0x4f7a8c, apron: 0xc9a86b, brooch: 0xd9b44a, hair: 0xc68b3e, longHair: true, headscarf: 0xe8dcc0, skin: SKIN(1), name: 'B13_kvinde_ved_vaeven' });
   add(place(weaver.root, -87.6, 8, -Math.PI / 2));
   act({ update(t) {
     standPose(weaver, t, 2);
@@ -545,7 +545,7 @@ export function buildJelling(scene, timeline, models = {}) {
       aimBone(B.LeftArm, man.root, restL, Z, d, ref.crossVectors(d, Y).addScaledVector(Z, 0.3));
     } });
   } else {
-    const chopper = makePerson({ tunic: 0x9c4a32, pants: 0x4d4436, hair: 0x6b4423, beard: 0x6b4423, seed: 5 });
+    const chopper = makePerson({ tunic: 0x9c4a32, pants: 0x4d4436, hair: 0x6b4423, beard: 0x6b4423, seed: 5, name: 'B14_mand_med_oekse' });
     chopper.armR.hand.add(tool('axe'));
     add(place(chopper.root, chopX, chopZ, chopYaw));
     act({ update(t) {
@@ -561,7 +561,7 @@ export function buildJelling(scene, timeline, models = {}) {
 
   // Two children playing tag.
   for (let k = 0; k < 2; k++) {
-    const kid = makePerson({ tunic: k ? 0x6e8f3e : 0xb5652f, pants: 0x5b4a3a, hair: k ? 0xd9a441 : 0x5a3a20, scale: 0.68, seed: 10 + k, longHair: k === 1 });
+    const kid = makePerson({ tunic: k ? 0x6e8f3e : 0xb5652f, pants: 0x5b4a3a, hair: k ? 0xd9a441 : 0x5a3a20, scale: 0.68, seed: 10 + k, longHair: k === 1, name: k ? 'B16_pige' : 'B15_dreng' });
     add(kid.root);
     act({ update(t) {
       const w = 0.62, rad = 3.2 + 0.6 * Math.sin(t * 0.4 + k);
@@ -575,6 +575,7 @@ export function buildJelling(scene, timeline, models = {}) {
   // Sheep in the pen.
   for (let i = 0; i < 5; i++) {
     const sh = makeSheep(400 + i);
+    sh.root.name = 'B12_faar_' + (i + 1);
     const x = -122 + (r() - 0.5) * 8, z = 2 + (r() - 0.5) * 8, yaw = r() * 6.28;
     add(place(sh.root, x, z, yaw));
     act({ update(t) { sh.head.rotation.x = 0.6 + 0.4 * Math.sin(t * 0.5 + i * 2); } });
@@ -600,7 +601,7 @@ export function buildJelling(scene, timeline, models = {}) {
   const turfLoop = loopPath([[-28, 36.5], [-21, 40], [-11, 43], [-5, 45], [-10, 47], [-20, 44], [-27, 39]]);
   const turfGeo = paint(G.box(0.5, 0.15, 0.38), 0x5e8a38, { rand: rng(500) });
   for (let k = 0; k < 4; k++) {
-    const w = makePerson({ tunic: [0x8a6b3f, 0x6d7a4a, 0x9a7a52, 0x7b5d43][k], pants: 0x4d4436, hair: [0x6b4423, 0x3a2a1a, 0xb07a3a, 0x5a3a20][k], beard: k % 2 ? 0x5a3a20 : undefined, seed: 20 + k });
+    const w = makePerson({ tunic: [0x8a6b3f, 0x6d7a4a, 0x9a7a52, 0x7b5d43][k], pants: 0x4d4436, hair: [0x6b4423, 0x3a2a1a, 0xb07a3a, 0x5a3a20][k], beard: k % 2 ? 0x5a3a20 : undefined, seed: 20 + k, name: 'C8_toervebaerer_' + (k + 1) });
     const turf = new THREE.Mesh(turfGeo, MAT.world);
     turf.position.set(0, 1.25, 0.38);
     w.body.add(turf);
@@ -627,7 +628,7 @@ export function buildJelling(scene, timeline, models = {}) {
   const faceYaw = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
 
   // Stonemason, chiselling every 1.25 s, stops when the dog barks.
-  const mason = makePerson({ tunic: 0x7d6b55, pants: 0x4a3f33, hair: 0x8a5a2a, beard: 0x8a5a2a, cap: 0x5c4d3c, seed: 30 });
+  const mason = makePerson({ tunic: 0x7d6b55, pants: 0x4a3f33, hair: 0x8a5a2a, beard: 0x8a5a2a, cap: 0x5c4d3c, seed: 30, name: 'D5_stenhugger' });
   mason.armR.hand.add(tool('hammer'));
   const chisel = tool('chisel'); mason.armL.hand.add(chisel);
   const [mx, mz] = at(0.75, 0.35);
@@ -651,7 +652,7 @@ export function buildJelling(scene, timeline, models = {}) {
   emit({ name: 'clink', period: STRIKE, offset: STRIKE * 0.8, x: mx, z: mz, until: timeline.dogBark });
 
   // King Harald in a blue cloak, gesturing at the stone.
-  const harald = makePerson({ tunic: 0xa3322a, pants: 0x3f3a52, cloak: 0x2f5fa8, hair: 0xb98a4a, beard: 0xb98a4a, circlet: true, sleeve: 0xa3322a, seed: 40 });
+  const harald = makePerson({ tunic: 0xa3322a, pants: 0x3f3a52, cloak: 0x2f5fa8, hair: 0xb98a4a, beard: 0xb98a4a, circlet: true, sleeve: 0xa3322a, seed: 40, name: 'D4_kong_harald' });
   const [hx, hz] = at(1.9, -2.5);
   add(place(harald.root, hx, hz, faceYaw(hx, hz, S.x, S.z)));
   act({ update(t) {
@@ -664,7 +665,7 @@ export function buildJelling(scene, timeline, models = {}) {
   } });
 
   // Priest (Poppo) with a cross.
-  const priest = makePerson({ robe: 0x3b3b46, tunic: 0x3b3b46, pants: 0x3b3b46, hair: 0x9a9a9a, seed: 50 });
+  const priest = makePerson({ robe: 0x3b3b46, tunic: 0x3b3b46, pants: 0x3b3b46, hair: 0x9a9a9a, seed: 50, name: 'D6_praesten_poppo' });
   priest.armR.hand.add(tool('cross'));
   const [px, pz] = at(2.8, -3.9);
   add(place(priest.root, px, pz, faceYaw(px, pz, S.x, S.z)));
@@ -672,7 +673,7 @@ export function buildJelling(scene, timeline, models = {}) {
 
   // Two guards by the church.
   for (let k = 0; k < 2; k++) {
-    const g = makePerson({ tunic: 0x5a6a3a, pants: 0x3a3226, hair: 0x4a3018, beard: 0x4a3018, shield: k ? 0xc23b2e : 0xd9b44a, seed: 60 + k });
+    const g = makePerson({ tunic: 0x5a6a3a, pants: 0x3a3226, hair: 0x4a3018, beard: 0x4a3018, shield: k ? 0xc23b2e : 0xd9b44a, seed: 60 + k, name: 'D7_vagt_' + (k + 1) });
     const sp = tool('spear'); sp.rotation.x = 0.35; g.armR.hand.add(sp);
     const x = SITES.church.x + (k ? 2.4 : -2.4), z = SITES.church.z + 6.2;
     add(place(g.root, x, z, 0));
@@ -681,6 +682,7 @@ export function buildJelling(scene, timeline, models = {}) {
 
   // The dog: sniffs around, notices the capsule, runs toward it and barks.
   const dog = makeDog();
+  dog.root.name = 'D8_hund';
   add(dog.root);
   const capsule = {};
   const barks = [0, 1.1, 2.4, 4.3, 5.2].map((o) => timeline.dogBark + o);

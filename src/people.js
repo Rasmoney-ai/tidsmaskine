@@ -18,6 +18,7 @@ export function makePerson(o = {}) {
     belt: 0x4a3322, wrap: 0xcfc2a2, ...o,
   };
   const root = new THREE.Group();
+  root.name = c.name || 'person';
   const s = c.scale || 1;
   const body = new THREE.Group(); body.scale.setScalar(s); root.add(body);
   const flat = [1, 1, 0.78];
