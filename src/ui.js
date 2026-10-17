@@ -36,6 +36,8 @@ export function initUI(app, renderer) {
     // Re-centering with the Meta button: local-floor origin moves with the user; the cabin follows the rig.
     renderer.xr.getReferenceSpace()?.addEventListener('reset', () => console.info('Reference space reset'));
     session.addEventListener('select', (e) => app.xrSelect(e));
+    session.addEventListener('selectstart', (e) => app.xrSelectStart(e));
+    session.addEventListener('selectend', (e) => app.xrSelectEnd(e));
     session.addEventListener('end', () => { app.clock.pause(); start.hidden = false; });
     app.restart();
   };

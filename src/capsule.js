@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { Builder, G, MAT, canvasTexture, wrapText } from './toon.js';
 import { CAPSULE, seatPosition, WORLD } from './config.js';
+import { drawItemIcon, drawAnalysisIcon } from './icons.js';
+import { buildTerminal } from './terminal.js';
 
 // The capsule's own materials: when seen from outside they are masked to the round door (stencil).
 const CAB = MAT.cabin.clone(); CAB.side = THREE.DoubleSide;
@@ -189,34 +191,6 @@ function drawButtons(ctx, rects) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
 
-// A small drawing of a scanned object for the lab screen (simple line icons).
-function drawItemIcon(ctx, id, x, y, r) {
-  ctx.save(); ctx.translate(x, y);
-  ctx.strokeStyle = '#dff0f2'; ctx.fillStyle = 'rgba(223,240,242,0.12)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-  const poly = (pts, fill = true) => { ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px * r, py * r) : ctx.moveTo(px * r, py * r))); ctx.closePath(); if (fill) ctx.fill(); ctx.stroke(); };
-  const ring = (rr, fill = true) => { ctx.beginPath(); ctx.arc(0, 0, rr * r, 0, 7); if (fill) ctx.fill(); ctx.stroke(); };
-  switch (id) {
-    case 'soelvmoent':
-      ctx.fillStyle = '#c9ccd0'; ring(1); ctx.strokeStyle = '#8d9196'; ring(0.86, false);
-      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-r * 0.45, -r * 0.25 + k * r * 0.25); ctx.bezierCurveTo(-r * 0.15, -r * 0.38 + k * r * 0.25, r * 0.1, -r * 0.1 + k * r * 0.25, r * 0.45, -r * 0.3 + k * r * 0.25); ctx.stroke(); }
-      break;
-    case 'vaevevaegt': ring(0.8); ctx.fillStyle = '#0d1013'; ring(0.32); break;
-    case 'hvaessesten': poly([[-1, -0.18], [1, -0.28], [1, 0.12], [-1, 0.22]]); ctx.beginPath(); ctx.arc(0.8 * r, -0.05 * r, 0.06 * r, 0, 7); ctx.stroke(); break;
-    case 'kam': poly([[-1, -0.35], [1, -0.35], [1, 0], [-1, 0]]); for (let i = 0; i < 11; i++) { const px = (-0.9 + i * 0.18) * r; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, 0.45 * r); ctx.stroke(); } break;
-    case 'toervblok': poly([[-0.9, -0.3], [0.9, -0.3], [0.9, 0.5], [-0.9, 0.5]]); ctx.beginPath(); ctx.moveTo(-0.9 * r, -0.1 * r); ctx.lineTo(0.9 * r, -0.1 * r); ctx.stroke(); break;
-    case 'thorshammer': poly([[-0.7, -0.15], [0.7, -0.15], [0.7, 0.15], [0.2, 0.15], [0.2, 0.9], [-0.2, 0.9], [-0.2, 0.15], [-0.7, 0.15]]); ctx.beginPath(); ctx.arc(0, -0.38 * r, 0.2 * r, 0, 7); ctx.stroke(); break;
-    case 'spade': poly([[-0.35, 0.2], [0.35, 0.2], [0.35, 0.95], [-0.35, 0.95]]); ctx.beginPath(); ctx.moveTo(0, 0.2 * r); ctx.lineTo(0, -0.95 * r); ctx.moveTo(-0.25 * r, -0.95 * r); ctx.lineTo(0.25 * r, -0.95 * r); ctx.stroke(); break;
-    case 'store_sten': poly([[-0.75, 1], [0.75, 1], [0.45, -1], [-0.4, -1]]); for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-0.4 * r, (-0.55 + k * 0.4) * r); ctx.lineTo(0.4 * r, (-0.55 + k * 0.4) * r); ctx.stroke(); } break;
-    case 'lille_sten': poly([[-0.5, 1], [0.5, 1], [0.35, -0.6], [-0.3, -0.7]]); ctx.beginPath(); ctx.moveTo(0, -0.4 * r); ctx.lineTo(0, 0.8 * r); ctx.stroke(); break;
-    case 'kors': poly([[-0.15, -0.6], [0.15, -0.6], [0.15, -0.2], [0.55, -0.2], [0.55, 0.1], [0.15, 0.1], [0.15, 0.95], [-0.15, 0.95], [-0.15, 0.1], [-0.55, 0.1], [-0.55, -0.2], [-0.15, -0.2]]); ctx.beginPath(); ctx.arc(0, -0.78 * r, 0.17 * r, 0, 7); ctx.stroke(); break;
-    case 'mejsel': poly([[-0.12, -1], [0.12, -1], [0.12, 0.6], [0, 1], [-0.12, 0.6]]); break;
-    case 'egestolpe': poly([[-0.3, 1], [0.3, 1], [0.3, -0.6], [0, -1], [-0.3, -0.6]]); for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(0, 0.9 * r, (0.1 + k * 0.08) * r, Math.PI, 0); ctx.stroke(); } break;
-    case 'oekse': ctx.beginPath(); ctx.moveTo(-0.1 * r, 1 * r); ctx.lineTo(0.15 * r, -0.9 * r); ctx.stroke(); poly([[0.05, -0.9], [0.75, -1], [0.85, -0.2], [0.1, -0.45]]); break;
-    default: ctx.strokeRect(-r, -r, 2 * r, 2 * r);
-  }
-  ctx.restore();
-}
-
 function panels(mapDrawer) {
   const geo = new THREE.PlaneGeometry(0.9, 0.5);
   const make = () => {
@@ -320,12 +294,12 @@ function panels(mapDrawer) {
     drawItemIcon(ctx, id, 96, 150, 50);
     ctx.fillStyle = '#f2f6f7'; ctx.font = `300 40px ${FONT}`; ctx.fillText(item.name.toUpperCase(), 180, 136);
     if (item.found) { ctx.fillStyle = '#7d8a8e'; ctx.font = `22px ${FONT}`; wrapText(ctx, item.found, 180, 170, SW - 220, 28); }
-    // Two columns: analysis type on the left, the text on the right.
+    // A symbol for each kind of analysis, then the text.
     let yy = 236;
     for (const an of item.analyses) {
-      ctx.fillStyle = '#ffb36b'; ctx.font = `600 20px ${FONT}`; letterSpaced(ctx, an.type.toUpperCase(), 40, yy, 3);
+      drawAnalysisIcon(ctx, an.type, 70, yy - 9, 18);
       ctx.fillStyle = '#dfe7e9'; ctx.font = `24px ${FONT}`;
-      yy = wrapText(ctx, an.text, 250, yy, SW - 290, 30) + 12;
+      yy = wrapText(ctx, an.text, 120, yy, SW - 160, 30) + 14;
     }
     s.tex.needsUpdate = true;
   }
@@ -437,6 +411,19 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   interior.add(core.group);
   const screens = panels(mapDrawer);
   interior.add(screens.group);
+  // The main terminal stands right in front of the student's start place.
+  const terminal = buildTerminal({ mapDrawer });
+  const term = new THREE.Group();
+  const stand = new Builder(950);
+  stand.add(G.box(0.8, 0.51, 0.03), DARK, { pos: [0, 1.1, -0.57], rot: [-0.65, 0, 0] });
+  stand.add(G.cyl(0.02, 0.025, 0.95, 8), GRAPHITE, { pos: [0, 0.48, -0.66] });
+  stand.add(G.cyl(0.14, 0.16, 0.02, 8), GRAPHITE, { pos: [0, 0.01, -0.66] });
+  term.add(stand.mesh(CAB));
+  terminal.mesh.position.set(0, 1.1, -0.55);
+  terminal.mesh.rotation.x = -0.65;
+  terminal.mesh.translateZ(0.017);
+  term.add(terminal.mesh);
+  interior.add(term);
   const d = door();
   const back = returnPanel();
   const mist = mistShell();
@@ -447,7 +434,8 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   const interiorMats = new Set();
   interior.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => interiorMats.add(m)); });
   return {
-    vehicle, rig, mist, panels: screens, door: d, returnPanel: back,
+    vehicle, rig, mist, panels: screens, door: d, returnPanel: back, terminal,
+    placeTerminal(seat) { const p = seatPosition(seat); term.position.set(p.x, 0, p.z); },
     // Outside, the capsule is in stealth: the inside shows only through the round door.
     setOutside(on) {
       back.visible = on;

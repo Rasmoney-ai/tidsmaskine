@@ -27,6 +27,8 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 - `timeline.js`: Ekspeditionen er en række klip: intro, tidsspring, landing, tågespring mellem zoner og tidsspring hjem. Tilstanden er (klip, tid i klippet). Kapslen flytter sig kun, når eleven vælger en zone (Landsbyen, Gravhøjene, Runestenen, Palisaden). Døren åbner, når kapslen står stille i en zone.
 - `clock.js`: Udskifteligt ur (lokalt nu, senere lydspor eller fælles server-ur).
 - `capsule.js`: Ottekantet glaskapsel i ren Villeneuve-stil (mørk grafit, mat beton, tynde lyslinjer, få ravfarvede accenter). Bygges i koden og ses kun indefra; udenfor er den i stealth, og kun dørrammen og et panel til at gå ind igen ses. Ingen møbler. Rund dør i frontvæggen (tidsportal), der åbner som en iris; udefra ses kapslens indre kun gennem døren (stencil). Skærmpaneler langs vinduerne: zonevalg, kort, status (årstal ukendt) og laboratorium. Lysring under ovenlyset og tågeskal til spring. 10 startpladser (`seatPosition`). På skærmen går man med W A S D.
+- `terminal.js`: Den ene terminal foran startpladsen med symbolfaner (zonevalg, kort, laboratorium, logbog), logbogens tre felter (nål, tidslinje-markør, ≠-par, beviser), rejsekortet og træk/tryk med mus eller VR-stråle. Buddet gemmes i `localStorage` (`tidsmaskinen.bud`) ved hjemrejse. Panelerne langs vinduerne er kulisse.
+- `icons.js`: Fælles symboler tegnet i canvas (genstande, analysetyper, perioder, faner, zoner) og et navnløst Nordeuropa-kort. Princip: få ord, symboler frem for tekst.
 - `world.js`: Terræn (ingen græsstrå, kun farvede flader), himmel og træer. `jelling.js`: pladsen uden mennesker og dyr, opdelt i zonegrupper (village, mounds, stone, always), spor af liv (røg, økse i klodsen, halvfærdig væv, hovspor) og scanbare genstande.
 - `scanner.js`: Håndholdt scanner (i højre hånd/controller i VR, nederst i billedet på pc udenfor). Stråle fra scannerens spids. Ved scanning flyver et blåt hologram op, forstørres og drejer foran eleven og suser ind i scanneren; først derefter står genstanden i laboratoriet. Scannede genstande lyser svagt; hver scanbar genstand har sit eget materiale.
 - `data/jelling.json`: De 13 genstande med analyser (godkendt indhold: ret ikke i teksterne). `trace: her` gør kortet skarpere, `trace: ud` tegner en linje mod kortkanten (`link.region` → retning, `link.label` → tekst). Placeringen i scenen står i `jelling.js` (`scannable(...)`).
@@ -54,6 +56,6 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 ## Idéer til senere (se milepælene i `DESIGN.md`)
 
 - Flere genstande pr. zone og proveniens på kortet.
-- Logbog med bud og eksport.
+- Eksport af buddet til læreren.
 - Fuld pc-, tablet- og mobilstyring.
 - Lyddesign og speak fra Rasmus.

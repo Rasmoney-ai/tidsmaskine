@@ -62,13 +62,20 @@ const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
 // Desktop look-around (drag), walking (W A S D) and clicks.
 const look = { yaw: 0, pitch: -0.12 };
 const walk = { x: 0, z: 0 };
-let drag = null;
-renderer.domElement.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY }; });
+let drag = null, termMouse = false;
+const terminal = capsule.terminal;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  const uv = terminalUV(mouseRay(e.clientX, e.clientY), true);
+  if (uv) { termMouse = true; terminal.down(uv); return; }
+  drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY };
+});
 addEventListener('pointerup', (e) => {
+  if (termMouse) { termMouse = false; const uv = terminalUV(mouseRay(e.clientX, e.clientY), false); if (uv) app.press(terminal.up(uv)); return; }
   if (drag && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 5) clickAt(e.clientX, e.clientY);
   drag = null;
 });
 addEventListener('pointermove', (e) => {
+  if (termMouse) { const uv = terminalUV(mouseRay(e.clientX, e.clientY), false); if (uv) terminal.move(uv); return; }
   if (!drag) {
     // Hand cursor over things that can be scanned.
     if (!state.outside) return;
@@ -84,6 +91,26 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+function mouseRay(x, y) { raycaster.setFromCamera(ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1), camera); return raycaster.ray.clone(); }
+// Where a ray meets the terminal, as uv (0..1). strict: must hit the screen; otherwise its plane (for dragging).
+const _plane = new THREE.Plane(), _p = new THREE.Vector3(), _n = new THREE.Vector3(), _inv = new THREE.Matrix4();
+function terminalUV(ray, strict) {
+  if (state.outside || timeline.clip.kind === 'jump') return null;
+  const m = terminal.mesh;
+  m.updateMatrixWorld();
+  if (strict) {
+    raycaster.set(ray.origin, ray.direction);
+    const hit = raycaster.intersectObject(m, false)[0];
+    return hit ? hit.uv : null;
+  }
+  _n.set(0, 0, 1).transformDirection(m.matrixWorld);
+  _plane.setFromNormalAndCoplanarPoint(_n, _p.setFromMatrixPosition(m.matrixWorld));
+  if (!ray.intersectPlane(_plane, _p)) return null;
+  _p.applyMatrix4(_inv.copy(m.matrixWorld).invert());
+  const g = m.geometry.parameters;
+  return { x: Math.min(1, Math.max(0, _p.x / g.width + 0.5)), y: Math.min(1, Math.max(0, _p.y / g.height + 0.5)) };
+}
 
 // One ray decides what was pressed: panel buttons, the door, the way back, or a trace to scan.
 function pressRay(origin, dir) {
@@ -114,18 +141,37 @@ function xrRay(source, frame, out = {}) {
   out.matrix = (out.matrix || new THREE.Matrix4()).copy(_m);
   return out;
 }
-function xrSelect(e) { capsule.rig.updateMatrixWorld(); const r = xrRay(e.inputSource, e.frame); if (r) pressRay(r.origin, r.dir); }
+const termSources = new Set(), consumed = new Set();
+function xrSelectStart(e) {
+  capsule.rig.updateMatrixWorld();
+  const r = xrRay(e.inputSource, e.frame);
+  const uv = r && terminalUV(new THREE.Ray(r.origin, r.dir), true);
+  if (uv) { termSources.add(e.inputSource); terminal.down(uv); }
+}
+function xrSelectEnd(e) {
+  if (!termSources.has(e.inputSource)) return;
+  termSources.delete(e.inputSource); consumed.add(e.inputSource);
+  const r = xrRay(e.inputSource, e.frame);
+  const uv = r && terminalUV(new THREE.Ray(r.origin, r.dir), false);
+  if (uv) app.press(terminal.up(uv));
+}
+function xrSelect(e) {
+  if (termSources.has(e.inputSource) || consumed.has(e.inputSource)) { consumed.delete(e.inputSource); return; }
+  capsule.rig.updateMatrixWorld(); const r = xrRay(e.inputSource, e.frame); if (r) pressRay(r.origin, r.dir);
+}
 
 function fadeThen(action) { if (!transition) transition = { t: 0, done: false, action }; }
 
 const app = {
   timeline, clock, audio, state, look, renderer, perf, scene, scanner,
   keys: new Set(),
-  restart(play = true) { timeline.reset(); scanner.scanned.clear(); setOutside(false); clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
-  setSeat(n) { state.seat = n; walk.x = walk.z = 0; if (!state.outside) placeRig(capsule.rig, n); },
+  restart(play = true) { timeline.reset(); scanner.scanned.clear(); scanner.collected.clear(); terminal.reset(); setOutside(false); clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
+  setSeat(n) { state.seat = n; walk.x = walk.z = 0; capsule.placeTerminal(n); if (!state.outside) placeRig(capsule.rig, n); },
   // Buttons and actions: a zone id, 'door' (go out), 'enter' (back in), 'home', 'again'.
   press(id) {
+    if (!id) return;
     if (id === 'again') return app.restart();
+    if (id === 'home' && !terminal.filled()) return;   // travel home needs at least one logbook field
     if (id === 'labPrev' || id === 'labNext') return capsule.panels.labStep(id === 'labNext' ? 1 : -1);
     if (id === 'door') { if (!state.outside && timeline.doorOpen(Math.max(clock.t, 0))) fadeThen(() => setOutside(true)); return; }
     if (id === 'enter') { if (state.outside) fadeThen(() => setOutside(false)); return; }
@@ -141,8 +187,9 @@ const app = {
     app.press(order[i]);
   },
   seekBy(dt) { if (timeline.clipId === 'intro') clock.seek(Math.max(-COUNTDOWN, Math.min(timeline.clip.dur - 0.01, clock.t + dt))); },
-  xrSelect,
+  xrSelect, xrSelectStart, xrSelectEnd,
 };
+capsule.placeTerminal(state.seat);
 window.app = app;
 initUI(app, renderer);
 
@@ -186,6 +233,17 @@ function mapClues() {
   return clues;
 }
 
+// The student's bid is saved in this browser when travelling home (no export yet).
+let savedFor = null;
+function saveBid() {
+  const bid = { ...terminal.log, scanned: [...scanner.collected], savedAt: new Date().toISOString() };
+  try {
+    const all = JSON.parse(localStorage.getItem('tidsmaskinen.bud') || '[]');
+    all.push(bid);
+    localStorage.setItem('tidsmaskinen.bud', JSON.stringify(all.slice(-20)));
+  } catch (e) { console.warn('Could not save the bid', e); }
+}
+
 // Zone choice and actions on the panel.
 function buttons(st) {
   const id = timeline.clipId, c = timeline.clip;
@@ -197,7 +255,7 @@ function buttons(st) {
   }));
   return [...zones,
     { id: 'door', label: 'Gå ud', row: 1, state: st.doorOpen ? 'go' : 'off' },
-    { id: 'home', label: 'Rejs hjem', row: 1, state: canChoose ? 'on' : 'off' }];
+    { id: 'home', label: 'Rejs hjem', row: 1, state: canChoose && terminal.filled() ? 'on' : 'off' }];
 }
 
 // Desktop walking: inside the capsule, or around the spot outside the door.
@@ -260,6 +318,15 @@ renderer.setAnimationLoop((now, frame) => {
     scanned: [...scanner.collected], data,
   });
   if (state.outside && state.debug) capsule.returnPanel.userData.draw(perf.summary());
+  const zb = buttons(st);
+  terminal.update({
+    finished: timeline.finished, year: st.year, doorOpen: st.doorOpen,
+    homeOn: (timeline.clip.kind === 'zone' || timeline.clip.kind === 'hold') && terminal.filled(),
+    zoneButtons: zb.filter((b) => b.row === 0).map((b) => ({ id: b.id, name: b.label, state: b.state })),
+    scanned: [...scanner.collected], data, map: { x: st.x, z: st.z, yaw: st.yaw, clues: mapClues() },
+  });
+  if (timeline.clipId === 'jumpHome' && savedFor !== timeline) { savedFor = timeline; saveBid(); }
+  if (timeline.clipId === 'intro') savedFor = null;
   capsule.animateCore(st.w + tau, st.jumping ? Math.sin(Math.PI * st.jumpProgress) : 0);
 
   if (app.inspect) {
@@ -288,6 +355,11 @@ renderer.setAnimationLoop((now, frame) => {
     tool.visible = state.outside && !app.inspect;
   }
   scanner.update(st.w + tau, dt, active, renderer.xr.isPresenting, camera);
+  // While a hand or controller holds on the terminal, its ray drags (marker, objects).
+  if (renderer.xr.isPresenting && frame && termSources.size) {
+    for (const source of termSources) { const r = xrRay(source, frame); const uv = r && terminalUV(new THREE.Ray(r.origin, r.dir), false); if (uv) terminal.move(uv); }
+  }
+  consumed.clear();
 
   // Door fade: out, act, in.
   if (transition) {

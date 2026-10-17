@@ -15,6 +15,14 @@ Koden i dette repo bygger på den **gamle version**: en guidet tur, hvor elevern
 
 Byg i små milepæle. Rør kun det, den aktuelle opgave beder om.
 
+## Princip: få ord
+
+Så lidt tekst som muligt. Symboler, billeder og placering bærer betydningen; ord bruges kun, hvor intet symbol kan gøre arbejdet. Al elevtekst er på dansk.
+
+- Faner, knapper og analyseoverskrifter er symboler (fx krystal for materiale, kompas for oprindelse, årringe for alder, lup for spor).
+- Et tomt felt vises med "?".
+- Analyseteksterne skrives korte og talte, så de senere kan erstattes af speak uden at ændre indholdet.
+
 ## Idéen kort
 
 Tidsmaskinen skifter fra en guidet tur til en undersøgelse: eleverne forlader kapslen, scanner spor på en øde plads i Jelling og skal selv finde ud af, hvor og hvornår de er.
@@ -34,7 +42,7 @@ Eleverne er tidsrejsende detektiver, hvis kapsel er landet et ukendt sted i fort
 ## Oplevelsens forløb
 
 1. Landing i kapslen.
-2. Eleven vælger en zone på panelet.
+2. Eleven vælger en zone på terminalen.
 3. Kapslen springer i tåge til zonen.
 4. Døren åbner. Eleven går ud og scanner spor.
 5. Tilbage i kapslen: laboratoriet viser analyserne.
@@ -44,15 +52,16 @@ Eleverne er tidsrejsende detektiver, hvis kapsel er landet et ukendt sted i fort
 
 ## Kapslen
 
-Kapslen er base og arbejdsrum. Den beholder Villeneuve-stilen og panelerne langs vinduerne, men panelerne får nye opgaver.
+Kapslen er base og arbejdsrum i Villeneuve-stil. **Al betjening sker på én terminal**, der står foran eleven på startpladsen, så alt kan nås inden for 2 × 2 meter. Nederst på terminalen er fire symbolfaner:
 
-| Panel | Funktion |
+| Fane | Funktion |
 | --- | --- |
-| Zonevalg | Eleven vælger, hvilket sted på pladsen der skal undersøges. Kapslen springer i tåge og lander ved zonen. |
-| Kort | Starter som verdenskort uden markering. Kan zoomes ind. Eventuelt sløret, indtil nok spor er scannet. |
-| Laboratorium | Viser de scannede genstande og analyserne af dem. Her samles brudstykkerne. |
-| Status | Årstal står som ukendt. Stealth-status bevares. |
-| Logbog | Elevens foreløbige bud på tid, sted og forandring, koblet til genstande. |
+| Zonevalg | Fire billedfliser (Landsbyen, Gravhøjene, Runestenen, Palisaden) samt dør og hjemrejse. Kapslen springer i tåge og lander ved zonen. |
+| Kort | Pladsen, sløret til at begynde med. Bliver skarpere med spor, der peger på *her*, og får linjer mod kanten for spor, der peger *ud*. |
+| Laboratorium | Én scannet genstand ad gangen med alle analyser; pile bladrer. Analyserne har symboler i stedet for overskrifter. |
+| Logbog | Elevens bud i tre felter (se nedenfor). |
+
+Årstallet står som "????" i terminalens hjørne. Panelerne langs vinduerne bliver stående som kulisse.
 
 Døren åbner kun, når kapslen står stille ved en zone. Kapslen ses stadig kun indefra.
 
@@ -91,9 +100,19 @@ Nogle spor peger bevidst i hver sin retning, fx Thorshammer og kors. Det er en s
 
 Fundsted er ikke det samme som oprindelse. Analyserne formuleres forsigtigt: "passer med", "sandsynligvis".
 
+## Logbogen
+
+Tre felter, intet tastatur. Hvert felt kan stå tomt og vises så med "?".
+
+- **Hvor?** En nål på et kort over Nordeuropa uden navne.
+- **Hvornår?** En vandret tidslinje med perioder som små billeder: stenredskab, bronzeøkse, vikingeskib, borg, kirke med tårn, fabrik, nutid. Eleven trækker en markør frit langs linjen. Der vises intet årstal.
+- **Hvad ændrer sig?** To scannede genstande lagt sammen som "passer ikke sammen" (≠). Ingen færdige kategorier.
+
+Scannede genstande ligger i en bakke nederst. De kan trækkes (eller trykkes og placeres) ind som bevis under *Hvor?* og *Hvornår?* og ind i ≠-parret.
+
 ## Afslutning uden facitliste
 
-Turen slutter med et foreløbigt bud i logbogen, og appen siger aldrig, om det er rigtigt. Eleven udfylder *Hvornår er vi?*, *Hvor er vi?* og *Hvad er ved at ændre sig?* og trækker understøttende genstande ind. Et felt kan stå som "ved ikke". Buddet gemmes og kan eksporteres til læreren.
+"Rejs hjem" virker, når mindst ét felt er udfyldt. Hjemme vises et rejsekort med nål, markør, det valgte par og beviserne – uden vurdering. Appen siger aldrig, om buddet er rigtigt. Buddet gemmes lokalt i browseren. Eksport til læreren kommer senere.
 
 ## Pædagogisk ramme og fagplan
 
@@ -110,7 +129,7 @@ Oplevelsen er et fælles udgangspunkt; det vigtigste sker i samtalen bagefter. D
 | Kapsel og paneler | Ændres | Nyt indhold på panelerne, dør der åbner |
 | Håndscanner | Ny | Controller-stråle i VR, klik på desktop |
 | Laboratorium og logbog | Ny | Data pr. genstand i en JSON-fil |
-| Gemt bud | Ny | Lokalt i browseren, eksport som tekst eller billede |
+| Gemt bud | Ny | Lokalt i browseren (milepæl 3); eksport senere |
 
 **Ydelse:** mål på 150.000 trekanter pr. zone. **Genstandsdata** ligger i en separat fil, så nye rejser kan tilføjes uden kodeændringer.
 
@@ -128,6 +147,6 @@ Oplevelsen er et fælles udgangspunkt; det vigtigste sker i samtalen bagefter. D
 
 1. Fjern figurer og dyr, tilføj visuelle spor af liv, zonevalg og dør ud, én scanbar genstand, laboratoriepanel med én analyse fra JSON.
 2. Flere genstande pr. zone og proveniens på kortet.
-3. Logbog med bud og eksport.
+3. Én terminal med symbolfaner, symboler i laboratoriet, logbog med tre felter, rejsekort og gemt bud. (Eksport venter.)
 4. Fuld pc-, tablet- og mobilstyring.
 5. Elevtest i Quest 3 og på Chromebook.
