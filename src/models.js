@@ -31,6 +31,57 @@ export async function loadModels(onProgress = () => {}) {
 
 // --- Static models -------------------------------------------------------
 
+// Some exported models have parts wound inside out (the files are double-sided, so it does not show there).
+// We draw front faces only, so each connected part is turned to face outward: closed parts by their signed
+// volume, open parts (roof sheets, planks) by whether most of their area faces away from the part's center.
+function flipTri(P, t) {
+  for (let k = 0; k < 3; k++) { const i = t * 9 + 3 + k, j = t * 9 + 6 + k, v = P[i]; P[i] = P[j]; P[j] = v; }
+}
+function flipAll(g) {
+  const P = g.attributes.position.array;
+  for (let t = 0; t < P.length / 9; t++) flipTri(P, t);
+}
+function orientOutward(g) {
+  const P = g.attributes.position.array, T = P.length / 9;
+  const parent = new Int32Array(T).map((_, i) => i);
+  const find = (i) => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+  const key = (i) => `${Math.round(P[i] * 1e4)},${Math.round(P[i + 1] * 1e4)},${Math.round(P[i + 2] * 1e4)}`;
+  const owner = new Map(), edges = new Map();
+  for (let t = 0; t < T; t++) {
+    const ks = [key(t * 9), key(t * 9 + 3), key(t * 9 + 6)];
+    for (const k of ks) { const o = owner.get(k); if (o === undefined) owner.set(k, t); else parent[find(t)] = find(o); }
+    for (let e = 0; e < 3; e++) { const a = ks[e], b = ks[(e + 1) % 3], ek = a < b ? a + '|' + b : b + '|' + a; edges.set(ek, (edges.get(ek) || 0) + 1); }
+  }
+  const comps = new Map();
+  for (let t = 0; t < T; t++) { const r = find(t); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(t); }
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), m = new THREE.Vector3(), ctr = new THREE.Vector3();
+  for (const tris of comps.values()) {
+    // Closed if every edge of the part is shared by exactly two triangles.
+    let closed = true;
+    for (const t of tris) {
+      for (let e = 0; e < 3; e++) {
+        const ka = key(t * 9 + e * 3), kb = key(t * 9 + ((e + 1) % 3) * 3);
+        if (edges.get(ka < kb ? ka + '|' + kb : kb + '|' + ka) !== 2) { closed = false; break; }
+      }
+      if (!closed) break;
+    }
+    ctr.set(0, 0, 0);
+    for (const t of tris) for (let v = 0; v < 3; v++) ctr.x += P[t * 9 + v * 3], ctr.y += P[t * 9 + v * 3 + 1], ctr.z += P[t * 9 + v * 3 + 2];
+    ctr.divideScalar(tris.length * 3);
+    let score = 0;
+    for (const t of tris) {
+      a.fromArray(P, t * 9).sub(ctr); b.fromArray(P, t * 9 + 3).sub(ctr); c.fromArray(P, t * 9 + 6).sub(ctr);
+      if (closed) score += a.dot(n.crossVectors(b, c));   // 6 × signed volume
+      else {
+        n.subVectors(c, b).cross(m.subVectors(a, b));
+        m.copy(a).add(b).add(c);
+        score += Math.sign(n.dot(m)) * n.length();       // area facing away from the center
+      }
+    }
+    if (score < 0) for (const t of tris) flipTri(P, t);
+  }
+}
+
 // All meshes merged into one faceted, vertex-colored geometry (bind pose for skinned meshes).
 const geoCache = new WeakMap();
 export function staticGeometry(gltf, filter = () => true) {
@@ -46,7 +97,9 @@ export function staticGeometry(gltf, filter = () => true) {
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) col.set(vc ? [vc.getX(i) * c.r, vc.getY(i) * c.g, vc.getZ(i) * c.b] : [c.r, c.g, c.b], i * 3);
     for (const name of Object.keys(g.attributes)) if (name !== 'position') g.deleteAttribute(name);
+    orientOutward(g);
     g.applyMatrix4(o.matrixWorld);
+    if (o.matrixWorld.determinant() < 0) flipAll(g);
     g.computeVertexNormals();
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     parts.push(g);
