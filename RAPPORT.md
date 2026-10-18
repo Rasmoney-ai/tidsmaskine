@@ -1,6 +1,8 @@
 # Rapport – milepæl 4
 
-**Gren:** `milepael-4` (lavet fra `main` = milepæl 3). Ikke flettet ind i `main`.
+**Gren:** `milepael-4` (lavet fra `main` = milepæl 3). `main` er flyttet frem til grenen efter aftale med Rasmus, så han kan teste i brillen.
+
+**Passthrough er midlertidigt slået fra** (`PASSTHROUGH = false` i `config.js`), indtil kapslens størrelse passer til et klasselokale. Brillen starter i VR, og nutiden er mørk, rolig tåge. `?ar=1` slår passthrough til for at teste. Al passthrough-logikken er bevaret.
 
 ## Bygget
 
@@ -11,7 +13,7 @@
 - Scanner og træk i logbogen bruger stadig input-kildernes pegestråle (knib), så de virker med hænderne som før.
 - **Rettelse (efter Rasmus' test):** Mange modeller fra Claude Design havde dele med fladerne vendt indad (fx tønden 100 %, langhuset 95 %). GLB-filerne er dobbeltsidede, så det ses ikke dér, men vi tegner kun forsiden, så man så indersiden. Nu vendes hver del udad ved indlæsning i `models.js` (lukkede dele efter deres rumfang, åbne dele efter hvilken vej det meste af fladen vender). Trekantantallet er uændret.
 - **Rettelse:** Ilden var sort. Flammerne i ildstedsmodellen har ingen farver på hjørnepunkterne, og appens materiale læser farven derfra. Nu får flammerne farven fra filen og lyser selv (ubelyst materiale).
-- **Testhjælp:** `?passthrough=1` efterligner passthrough på pc (klasselokalet er en grå flade).
+- **Testhjælp:** `?ar=1` starter passthrough i brillen, selvom den er slået fra. `?passthrough=1` efterligner passthrough på pc (klasselokalet er en grå flade).
 - DESIGN.md og CLAUDE.md er opdateret. Rapport-reglen er tilføjet under Arbejdsform i CLAUDE.md.
 
 ## Testet (desktop-tilstand i browseren)
@@ -29,15 +31,16 @@
 
 ## Prøv i brillen
 
-1. Tryk "Gå ind i VR". Kan du se klasselokalet gennem kapslens vinduer, og er gulv og loft tætte?
+1. Tryk "Gå ind i VR". Nutiden skal være mørk tåge (passthrough er slået fra). Vil du prøve passthrough, så tilføj `?ar=1` til adressen: Kan du se klasselokalet gennem vinduerne, og er gulv og loft tætte?
 2. Se tidsspringet: dækker tågen blødt, og kommer fortiden frem uden blink?
 3. Gå ud i Landsbyen ved bænken: står langhuset, tønderne og væven hele og ikke hule? Lyser ilden orange?
 4. Hold hænderne op: ses de som realistiske hænder? Virker scanneren (knib) udenfor og træk i logbogen?
-5. Rejs hjem: letter tågen til klasselokalet?
+5. Rejs hjem: lander du i den mørke tåge (eller i klasselokalet med `?ar=1`)?
 6. Tjek billedfrekvensen med `?debug=1`.
 
 ## Afvigelser fra prompten
 
 - **Ovenlyset er lukket.** Det var glas, men prompten siger, at loftet altid er uigennemsigtigt.
 - **Tilføjet `?passthrough=1`**, så passthrough kan efterlignes på pc. Det var ikke bestilt, men var nødvendigt for at teste i desktop-tilstand.
+- **Passthrough slået fra** efter Rasmus' ønske, indtil kapslens størrelse er rettet.
 - **Tågen i kabinen** er slået fra i nutiden (også uden passthrough), så kapslen ikke farves mørk af den nye mørke tåge. Under springene er den som før.

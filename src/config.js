@@ -31,6 +31,10 @@ export function seatPosition(n) {
   return { x: side * CAPSULE.SEAT_X, z: CAPSULE.FRONT_ROW_Z + row * CAPSULE.ROW_PITCH };
 }
 
+// Passthrough as the present (immersive-ar). Off for now until the capsule size fits a classroom;
+// ?ar=1 turns it on for testing. Off: the headset starts in VR and the present is dark, calm mist.
+export const PASSTHROUGH = false;
+
 export const COUNTDOWN = 5;          // seconds before the trip starts
 export const TRIP_YEAR = 968;
 export const HOME_YEAR = 2026;

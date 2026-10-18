@@ -1,5 +1,5 @@
 // Start page (start place, enter VR / screen) and desktop keyboard controls.
-import { SEAT_COUNT } from './config.js';
+import { SEAT_COUNT, PASSTHROUGH } from './config.js';
 
 export function initUI(app, renderer) {
   const $ = (id) => document.getElementById(id);
@@ -18,11 +18,12 @@ export function initUI(app, renderer) {
   }
   select(app.state.seat);
 
-  // XR support: passthrough (immersive-ar) when the headset has it, so the present is the real classroom; else VR.
+  // XR support: VR; passthrough (immersive-ar) only when PASSTHROUGH or ?ar=1 asks for it and the headset has it.
   let mode = null;
+  const wantAR = PASSTHROUGH || new URLSearchParams(location.search).get('ar') === '1';
   if (navigator.xr) {
     Promise.all(['immersive-ar', 'immersive-vr'].map((m) => navigator.xr.isSessionSupported(m).catch(() => false))).then(([ar, vr]) => {
-      mode = ar ? 'immersive-ar' : vr ? 'immersive-vr' : null;
+      mode = ar && wantAR ? 'immersive-ar' : vr ? 'immersive-vr' : null;
       vrBtn.disabled = !mode;
       if (!mode) vrBtn.textContent = 'VR findes ikke på denne enhed';
     });

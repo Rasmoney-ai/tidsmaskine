@@ -22,7 +22,7 @@ Projektejer: Rasmus (lærer). Han tester i en Quest 3 og foretrækker enkle, vel
 - Statisk side uden byggetrin: `index.html`, ES-moduler, three.js r170 i `vendor/` (import map: `three`).
 - Lokal test: `python -m http.server 8137` og åbn `http://localhost:8137`. Hosting: GitHub Pages fra `main` med relative stier og `.nojekyll`.
 - Reference space `local-floor`, hand tracking valgfri, ingen controllere nødvendige.
-- Sessionen starter som `immersive-ar` (passthrough), når brillen understøtter det, ellers `immersive-vr`. `?passthrough=1` efterligner passthrough på pc (klasselokalet er en grå flade).
+- Sessionen starter som `immersive-vr`. Passthrough (`immersive-ar`) er midlertidigt slået fra med `PASSTHROUGH = false` i `config.js`, indtil kapslens størrelse passer til et klasselokale; `?ar=1` slår det til for at teste. `?passthrough=1` efterligner passthrough på pc (klasselokalet er en grå flade).
 
 ## Arkitektur
 
