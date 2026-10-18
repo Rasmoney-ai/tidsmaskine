@@ -52,7 +52,7 @@ Eleverne er tidsrejsende detektiver, hvis kapsel er landet et ukendt sted i fort
 3. Kapslen springer i tåge til zonen.
 4. Døren åbner. Eleven går ud og scanner spor.
 5. Tilbage i kapslen: laboratoriet viser analyserne.
-6. Klar til et bud? Nej: vælg en ny zone (tilbage til 2). Ja: bud i logbogen.
+6. Klar til et bud? Nej: vælg en ny zone (tilbage til 2). Ja: gæt og beviser i logbogen.
 7. Hjemrejse: tågen letter, og klasselokalet ses igen.
 8. Samtale i klassen (sker uden for appen).
 
@@ -65,7 +65,7 @@ Kapslen er base og arbejdsrum i Villeneuve-stil. **Al betjening sker på én ter
 | Zonevalg | Fire billedfliser (Landsbyen, Gravhøjene, Runestenen, Palisaden) samt dør og hjemrejse. Kapslen springer i tåge og lander ved zonen. |
 | Kort | Pladsen, sløret til at begynde med. Bliver skarpere med spor, der peger på *her*, og får linjer mod kanten for spor, der peger *ud*. |
 | Laboratorium | Én scannet genstand ad gangen med alle analyser; pile bladrer. Analyserne har symboler i stedet for overskrifter. |
-| Logbog | Elevens bud i tre felter (se nedenfor). |
+| Logbog | Elevens gæt, bevisfasen og hjemrejsen (se nedenfor). |
 
 Årstallet står som "????" i terminalens hjørne. Panelerne langs vinduerne bliver stående som kulisse.
 
@@ -108,17 +108,25 @@ Fundsted er ikke det samme som oprindelse. Analyserne formuleres forsigtigt: "pa
 
 ## Logbogen
 
-Tre felter, intet tastatur. Hvert felt kan stå tomt og vises så med "?".
+Tre trin, intet tastatur.
 
-- **Hvor?** En nål på et kort over Nordeuropa uden navne.
-- **Hvornår?** En vandret tidslinje med perioder som små billeder: stenredskab, bronzeøkse, vikingeskib, borg, kirke med tårn, fabrik, nutid. Eleven trækker en markør frit langs linjen. Der vises intet årstal.
-- **Hvad ændrer sig?** To scannede genstande lagt sammen som "passer ikke sammen" (≠). Ingen færdige kategorier.
+1. **Elevens gæt.** *Hvor?* En nål på et kort over Nordeuropa uden navne. *Hvornår?* En markør på en vandret tidslinje med perioder som små billeder (stenredskab, bronzeøkse, vikingeskib, borg, kirke med tårn, fabrik, nutid). Der vises intet årstal. Tomme felter vises med "?".
+2. **Bevisfasen.** De scannede genstande ligger som billeder i en række. Eleven markerer en genstand ved at trykke på den (og fjerner markeringen ved at trykke igen). Hver markeret genstand lægger sin zone fra `evidence` i `data/jelling.json`: sit tidsinterval (`dating`) på tidslinjen og sit område (`zone` i `regions`) på kortet. Overlappet af tidsintervallerne og overlappet af "her"-zonerne fremhæves. "Ud"-zoner tegnes ved oprindelsen med en linje til overlappet af "her"-zonerne; ligger oprindelsen uden for kortet, peger en pil derhen fra kanten.
+3. **Rejs hjem.** Prikker viser, hvor mange genstande der skal markeres (`evidence.minItems`). Trykker eleven for tidligt, siger kapslens robot "tooFew". Med nok genstande siger robotten "done" med tid og sted og derefter et åbent spørgsmål, og kapslen rejser hjem.
 
-Scannede genstande ligger i en bakke nederst. De kan trækkes (eller trykkes og placeres) ind som bevis under *Hvor?* og *Hvornår?* og ind i ≠-parret.
+Feltet "Hvad ændrer sig?" (≠) er udgået.
 
 ## Afslutning uden facitliste
 
-"Rejs hjem" virker, når mindst ét felt er udfyldt. Hjemme vises et rejsekort med nål, markør, det valgte par og beviserne – uden vurdering. Appen siger aldrig, om buddet er rigtigt. Buddet gemmes lokalt i browseren. Eksport til læreren kommer senere.
+"Rejs hjem" virker, når mindst `evidence.minItems` genstande er markeret. Robottens replikker følger reglerne i `data/jelling.json`:
+
+- **Tid:** overlappet af de markerede genstandes `dating`. Bredden vælger sætningen i `timePhrases` (`{from}`, `{to}`, `{mid}` udfyldes).
+- **Sted:** `placePhrases.revealed`, hvis en markeret genstand har `revealsPlace`; ellers sætningen for den smalleste "her"-zone, hvis den findes (fx `jelling_egn`); ellers `default`.
+- **Åbent spørgsmål:** `openQuestionBoth`, hvis både lille hammer og kors er markeret; ellers `openQuestionDefault`.
+
+Robotten vises som tekst indtil videre; lyd og speak kommer senere.
+
+Hjemme viser rejsekortet elevens gæt (nål og markør) ved siden af overlappet fra sporene, de markerede genstande og robottens åbne spørgsmål. Appen vurderer ikke gættet. Buddet (gæt, markerede genstande, tid og robottens replikker) gemmes lokalt i browseren. Eksport til læreren kommer senere.
 
 ## Pædagogisk ramme og fagplan
 
@@ -154,6 +162,7 @@ Oplevelsen er et fælles udgangspunkt; det vigtigste sker i samtalen bagefter. D
 1. Fjern figurer og dyr, tilføj visuelle spor af liv, zonevalg og dør ud, én scanbar genstand, laboratoriepanel med én analyse fra JSON.
 2. Flere genstande pr. zone og proveniens på kortet.
 3. Én terminal med symbolfaner, symboler i laboratoriet, logbog med tre felter, rejsekort og gemt bud. (Eksport venter.)
-4. Passthrough som nutid og three.js-hænder.
-5. Fuld pc-, tablet- og mobilstyring.
-6. Elevtest i Quest 3 og på Chromebook.
+4. Passthrough som nutid og three.js-hænder (passthrough midlertidigt slået fra).
+5. Bevisfasen: markerede genstande lægger zoner på kort og tidslinje, robotten opsummerer, nyt rejsekort.
+6. Fuld pc-, tablet- og mobilstyring.
+7. Elevtest i Quest 3 og på Chromebook.

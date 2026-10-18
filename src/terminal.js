@@ -7,22 +7,23 @@ import {
   drawItemIcon, drawAnalysisIcon, drawPeriodIcon, PERIODS, drawTabIcon, drawZoneIcon, drawSymbol, drawQuestion,
   drawRegionMap, regionProjection,
 } from './icons.js';
+import { weighEvidence, robotLines, yearToT } from './evidence.js';
 
 const TW = 1280, TH = 800, TAB_Y = 690;
 const FONT = 'system-ui, "Segoe UI", sans-serif';
 const BG = '#0d1013', LINE = '#dff0f2', DIM = 'rgba(223,240,242,0.18)', AMBER = '#ffb36b';
+const TEAL = '#7fe0b8', teal = (a) => `rgba(127,224,184,${a})`;   // the traces' color (amber is the student's guess)
 const TABS = ['zones', 'map', 'lab', 'log'];
 
-// Logbook layout (canvas pixels).
+// Logbook layout (canvas pixels). Step a: guess (pin, marker). Step b: mark scanned objects as evidence.
+// Step c: travel home when enough are marked; the robot sums up.
 const L = {
-  map: { x: 40, y: 120, w: 440, h: 290 }, whereEv: { x: 500, y: 120, w: 110, h: 290 },
-  pairA: { x: 700, y: 150, w: 200, h: 200 }, pairB: { x: 1040, y: 150, w: 200, h: 200 },
-  line: { x: 60, y: 470, w: 900, h: 120 }, whenEv: { x: 1000, y: 455, w: 250, h: 110 },
-  tray: { x: 40, y: 600, w: 1200, h: 80 },
+  map: { x: 40, y: 115, w: 620, h: 310 }, robot: { x: 690, y: 115, w: 550, h: 200 }, home: { x: 690, y: 330, w: 550, h: 95 },
+  line: { x: 60, y: 450, w: 1160, h: 110 }, tray: { x: 40, y: 590, w: 1200, h: 84 },
 };
 const inside = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
-export function emptyLog() { return { pin: null, when: null, pair: [null, null], whereEv: [], whenEv: [] }; }
+export function emptyLog() { return { pin: null, when: null, marked: [] }; }
 
 export function buildTerminal({ mapDrawer }) {
   const { canvas, ctx, tex } = canvasTexture(TW, TH);
@@ -31,13 +32,13 @@ export function buildTerminal({ mapDrawer }) {
   let tab = 'zones', labIdx = -1, labCount = 0;
   let log = emptyLog();
   let regions = [];                 // clickable areas from the last draw
-  let drag = null;                  // { kind: 'item', id, x, y, moved } or { kind: 'marker' }
+  let drag = null;                  // { kind: 'marker' } while the time marker is dragged
   let pending = null;               // region pressed (fires on release)
-  let selected = null;              // tray item chosen by a tap (then tap a target)
+  let speech = null;                // what the robot says now (lines), or null
   let dirty = true, lastKey = '';
   let view = null;                  // latest outside info (zone buttons, scanned list, data, clues, home)
 
-  const R = (id, x, y, w, h, extra = {}) => regions.push({ id, x, y, w, h, ...extra });
+  const R = (id, x, y, w, h) => regions.push({ id, x, y, w, h });
 
   // --- Drawing ------------------------------------------------------------
   function frame() {
@@ -82,13 +83,15 @@ export function buildTerminal({ mapDrawer }) {
       if (z.state === 'seen') smallLabel('✓', r.x + r.w - 30, r.y + 30, '#7fe0b8', 30);
       if (z.state !== 'off' && z.state !== 'here') R('zone:' + z.id, r.x, r.y, r.w, r.h);
     });
-    // Door out and travel home: symbols only.
+    // Door out and travel home: symbols only. Home is lit when enough evidence is marked;
+    // pressed too early, the robot asks for more (in the logbook).
     const door = { x: 40, y: 430, w: 590, h: 230 }, home = { x: 650, y: 430, w: 590, h: 230 };
     tile(door, view.doorOpen ? 'go' : 'off');
     drawSymbol(ctx, 'door', door.x + door.w / 2, door.y + door.h / 2, 80, view.doorOpen ? AMBER : DIM);
     if (view.doorOpen) R('door', door.x, door.y, door.w, door.h);
-    tile(home, view.homeOn ? 'go' : 'off');
-    drawSymbol(ctx, 'home', home.x + home.w / 2, home.y + home.h / 2, 80, view.homeOn ? AMBER : DIM);
+    const ready = api.ready();
+    tile(home, !view.homeOn ? 'off' : ready ? 'go' : 'on');
+    drawSymbol(ctx, 'home', home.x + home.w / 2, home.y + home.h / 2, 80, !view.homeOn ? DIM : ready ? AMBER : 'rgba(223,240,242,0.6)');
     if (view.homeOn) R('home', home.x, home.y, home.w, home.h);
   }
 
@@ -121,40 +124,42 @@ export function buildTerminal({ mapDrawer }) {
     }
   }
 
-  // Thumbnail of a scanned object in a small square.
-  function thumb(id, x, y, s, hl = false) {
+  // Thumbnail of a scanned object in a small square; marked evidence is lit with a check.
+  function thumb(id, x, y, s, marked = false) {
     ctx.beginPath(); ctx.roundRect(x, y, s, s, 8);
-    ctx.fillStyle = hl ? 'rgba(255,179,107,0.2)' : 'rgba(223,240,242,0.05)'; ctx.fill();
-    ctx.strokeStyle = hl ? AMBER : 'rgba(223,240,242,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = marked ? teal(0.2) : 'rgba(223,240,242,0.05)'; ctx.fill();
+    ctx.strokeStyle = marked ? TEAL : 'rgba(223,240,242,0.4)'; ctx.lineWidth = marked ? 4 : 2; ctx.stroke();
     drawItemIcon(ctx, id, x + s / 2, y + s / 2, s * 0.32);
+    if (marked) drawSymbol(ctx, 'check', x + s - 14, y + 14, 9, TEAL);
   }
-  function evidence(list, r, key) {
-    // Up to three objects as evidence; empty slots show a faint frame.
-    // A tall box stacks them; a wide box puts them side by side.
-    const row = r.w > r.h;
-    const s = row ? Math.min(r.h, (r.w - 20) / 3) : Math.min(r.w, (r.h - 20) / 3);
-    R('drop:' + key, r.x, r.y, r.w, r.h);   // registered first, so the thumbnails on top win
-    for (let i = 0; i < 3; i++) {
-      const x = row ? r.x + i * (s + 10) : r.x + (r.w - s) / 2, y = row ? r.y + (r.h - s) / 2 : r.y + i * (s + 10);
-      if (list[i]) { thumb(list[i], x, y, s); R(`rm:${key}:${i}`, x, y, s, s); }
-      else { ctx.setLineDash([6, 6]); ctx.strokeStyle = selected ? AMBER : DIM; ctx.lineWidth = 2; ctx.strokeRect(x + 4, y + 4, s - 8, s - 8); ctx.setLineDash([]); }
+
+  // The period timeline with the student's marker (amber) and the traces' datings (teal), overlap bright.
+  function timeline(r, when, ev, interactive = true) {
+    const yLine = r.y + r.h - 20, X = (t) => r.x + t * r.w;
+    if (ev && ev.items.length) {
+      for (const it of ev.items) {
+        const xa = X(yearToT(it.evidence.dating[0])), xb = X(yearToT(it.evidence.dating[1]));
+        ctx.fillStyle = teal(0.16); ctx.fillRect(xa, yLine - 12, Math.max(4, xb - xa), 24);
+      }
+      if (ev.time) {
+        const xa = X(yearToT(ev.time.from)), xb = X(yearToT(ev.time.to)), w = Math.max(8, xb - xa), x0 = (xa + xb - w) / 2;
+        ctx.fillStyle = teal(0.9); ctx.fillRect(x0, yLine - 16, w, 32);
+        ctx.strokeStyle = TEAL; ctx.lineWidth = 2; ctx.strokeRect(x0 - 5, yLine - 22, w + 10, 44);
+      }
     }
-  }
-  function timeline(r, when, interactive = true) {
-    const yLine = r.y + r.h - 20;
     ctx.strokeStyle = 'rgba(223,240,242,0.6)'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(r.x, yLine); ctx.lineTo(r.x + r.w, yLine); ctx.stroke();
     for (let i = 0; i < PERIODS; i++) {
       const x = r.x + (i + 0.5) * (r.w / PERIODS);
-      drawPeriodIcon(ctx, i, x, r.y + 40, 26);
+      drawPeriodIcon(ctx, i, x, r.y + 30, 26);
       ctx.beginPath(); ctx.moveTo(x, yLine - 8); ctx.lineTo(x, yLine + 8); ctx.stroke();
     }
     if (when != null) {
-      const x = r.x + when * r.w;
+      const x = X(when);
       ctx.fillStyle = AMBER; ctx.strokeStyle = AMBER; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(x, r.y - 4); ctx.lineTo(x, yLine); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, r.y + 56); ctx.lineTo(x, yLine); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x, yLine - 2); ctx.lineTo(x - 16, yLine + 22); ctx.lineTo(x + 16, yLine + 22); ctx.closePath(); ctx.fill();
-    } else {
+    } else if (interactive) {
       // No marker yet: a "?" sits on the line, between two periods.
       const x = r.x + r.w / 2 + r.w / PERIODS / 2;
       ctx.fillStyle = BG; ctx.fillRect(x - 22, yLine - 26, 44, 52);
@@ -162,56 +167,130 @@ export function buildTerminal({ mapDrawer }) {
     }
     if (interactive) R('timeline', r.x - 20, r.y - 10, r.w + 40, r.h + 40);
   }
-  function regionPin(r, pin) {
-    drawRegionMap(ctx, r);
-    if (pin) { const [x, y] = regionProjection(r).toXY(pin[0], pin[1]); drawSymbol(ctx, 'pin', x, y - 4, 18); }
-    else drawQuestion(ctx, r.x + r.w / 2, r.y + r.h / 2, 90);
+
+  // The region map with the traces' zones: 'her' zones and their overlap (bright), 'ud' zones at their
+  // origin with a line to the overlap. Zones beyond the map edge get an arrow at the edge.
+  function evidenceMap(r, ev) {
+    const P = regionProjection(r), s = P.toXY(0, 50)[1] - P.toXY(0, 51)[1];   // pixels per degree of latitude
+    const circle = (z) => { const [x, y] = P.toXY(z.lon, z.lat); return { x, y, r: (z.radiusKm / 111.2) * s }; };
+    const here = ev.here.map(circle), out = ev.out.map(circle);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+    for (const c of here) {
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7);
+      ctx.fillStyle = teal(0.1); ctx.fill(); ctx.strokeStyle = teal(0.55); ctx.lineWidth = 2; ctx.stroke();
+    }
+    // Overlap of all 'her' zones: clip to each in turn, then fill. Its center by sampling the smallest zone.
+    let center = null;
+    if (here.length) {
+      ctx.save();
+      for (const c of here) { ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7); ctx.clip(); }
+      ctx.fillStyle = teal(0.6); ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.restore();
+      const m = here.reduce((a, b) => (b.r < a.r ? b : a));
+      let sx = 0, sy = 0, n = 0;
+      for (let i = 0; i <= 20; i++) for (let j = 0; j <= 20; j++) {
+        const x = m.x - m.r + (2 * m.r * i) / 20, y = m.y - m.r + (2 * m.r * j) / 20;
+        if (here.every((c) => Math.hypot(x - c.x, y - c.y) <= c.r)) { sx += x; sy += y; n++; }
+      }
+      if (n) center = [sx / n, sy / n];
+    }
+    for (const c of out) {
+      const onMap = inside({ x: r.x + 4, y: r.y + 4, w: r.w - 8, h: r.h - 8 }, c.x, c.y);
+      let ex = c.x, ey = c.y;
+      if (!onMap) {
+        // Pull the point back along the line from the map center to just inside the edge.
+        const mx = r.x + r.w / 2, my = r.y + r.h / 2, dx = c.x - mx, dy = c.y - my;
+        const k = Math.min((r.w / 2 - 22) / Math.abs(dx || 1e-6), (r.h / 2 - 22) / Math.abs(dy || 1e-6));
+        ex = mx + dx * k; ey = my + dy * k;
+      }
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7);
+      ctx.fillStyle = 'rgba(223,240,242,0.07)'; ctx.fill();
+      ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(223,240,242,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+      if (center) { ctx.beginPath(); ctx.moveTo(center[0], center[1]); ctx.lineTo(ex, ey); ctx.strokeStyle = teal(0.85); ctx.lineWidth = 3; ctx.stroke(); }
+      ctx.setLineDash([]);
+      ctx.fillStyle = LINE;
+      if (!onMap) {
+        ctx.save(); ctx.translate(ex, ey); ctx.rotate(Math.atan2(c.y - ey, c.x - ex));
+        ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -11); ctx.lineTo(-8, 11); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else { ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 7); ctx.fill(); }
+    }
+    ctx.restore();
   }
-  function pairSlot(r, id, key) {
+
+  function mapWithPin(r, pin, ev, showQuestion = true) {
+    drawRegionMap(ctx, r);
+    if (ev) evidenceMap(r, ev);
+    if (pin) { const [x, y] = regionProjection(r).toXY(pin[0], pin[1]); drawSymbol(ctx, 'pin', x, y - 4, 18); }
+    else if (showQuestion) drawQuestion(ctx, r.x + r.w / 2, r.y + r.h / 2, 90);
+  }
+
+  // The capsule's robot with what it says, in a box (text for now; speech later).
+  function robotBox(r, lines, size = 28) {
     ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 12);
-    ctx.fillStyle = 'rgba(223,240,242,0.04)'; ctx.fill();
-    ctx.strokeStyle = selected ? AMBER : 'rgba(223,240,242,0.45)'; ctx.lineWidth = 2; ctx.stroke();
-    if (id) drawItemIcon(ctx, id, r.x + r.w / 2, r.y + r.h / 2, 60); else drawQuestion(ctx, r.x + r.w / 2, r.y + r.h / 2, 90);
-    R('drop:' + key, r.x, r.y, r.w, r.h);
+    ctx.fillStyle = 'rgba(223,240,242,0.04)'; ctx.fill(); ctx.strokeStyle = 'rgba(223,240,242,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+    drawSymbol(ctx, 'robot', r.x + 50, r.y + 60, 30, lines ? TEAL : 'rgba(223,240,242,0.45)');
+    if (!lines) return;
+    ctx.fillStyle = LINE; ctx.font = `${size}px ${FONT}`;
+    let y = r.y + 30 + size;
+    for (const line of lines) y = wrapText(ctx, line, r.x + 105, y, r.w - 125, size * 1.3) + size * 0.5;
+  }
+
+  // Dots for the evidence needed: one per item, lit as items are marked.
+  function needDots(x, y, have, need) {
+    for (let i = 0; i < need; i++) {
+      ctx.beginPath(); ctx.arc(x + i * 34, y, 11, 0, 7);
+      ctx.fillStyle = i < have ? TEAL : 'rgba(223,240,242,0.06)'; ctx.fill();
+      ctx.strokeStyle = i < have ? TEAL : 'rgba(223,240,242,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+    }
   }
 
   function drawLog() {
+    const data = view.data, need = data.evidence.minItems, ev = weighEvidence(data, log.marked);
     smallLabel('Hvor?', L.map.x, 95, 'rgba(223,240,242,0.7)', 26, 'left');
-    regionPin(L.map, log.pin);
+    mapWithPin(L.map, log.pin, ev);
     R('logmap', L.map.x, L.map.y, L.map.w, L.map.h);
-    evidence(log.whereEv, L.whereEv, 'where');
-    smallLabel('Hvad ændrer sig?', L.pairA.x, 95, 'rgba(223,240,242,0.7)', 26, 'left');
-    pairSlot(L.pairA, log.pair[0], 'pairA');
-    pairSlot(L.pairB, log.pair[1], 'pairB');
-    drawSymbol(ctx, 'notmatch', (L.pairA.x + L.pairA.w + L.pairB.x) / 2, L.pairA.y + L.pairA.h / 2, 34, AMBER);
+    robotBox(L.robot, speech);
+    // Travel home: lit when enough evidence is marked.
+    const ready = api.ready();
+    tile(L.home, !view.homeOn ? 'off' : ready ? 'go' : 'on');
+    drawSymbol(ctx, 'home', L.home.x + 60, L.home.y + L.home.h / 2, 30, view.homeOn && ready ? AMBER : 'rgba(223,240,242,0.5)');
+    needDots(L.home.x + 140, L.home.y + L.home.h / 2, log.marked.length, need);
+    if (view.homeOn) R('home', L.home.x, L.home.y, L.home.w, L.home.h);
     smallLabel('Hvornår?', L.line.x - 20, 440, 'rgba(223,240,242,0.7)', 26, 'left');
-    timeline(L.line, log.when);
-    evidence(log.whenEv, { x: L.whenEv.x, y: L.whenEv.y, w: L.whenEv.w, h: L.whenEv.h }, 'when');
-    // The tray: every scanned object, ready to drag (or tap, then tap a field).
-    const s = 70;
+    timeline(L.line, log.when, ev);
+    // The tray: every scanned object. Tap to mark it as evidence (tap again to unmark).
+    const s = 78;
     view.scanned.forEach((id, i) => {
-      const x = L.tray.x + i * (s + 12), y = L.tray.y + 4;
-      thumb(id, x, y, s, selected === id);
-      R('item:' + id, x, y, s, s, { item: id });
+      const x = L.tray.x + i * (s + 12), y = L.tray.y + 2;
+      thumb(id, x, y, s, log.marked.includes(id));
+      R('item:' + id, x, y, s, s);
     });
     if (!view.scanned.length) drawQuestion(ctx, L.tray.x + 40, L.tray.y + 40, 50);
     // Small clear buttons for the pin and the marker.
     if (log.pin) { drawSymbol(ctx, 'clear', L.map.x + L.map.w - 22, L.map.y + 22, 16); R('clearPin', L.map.x + L.map.w - 44, L.map.y, 44, 44); }
-    if (log.when != null) { drawSymbol(ctx, 'clear', L.line.x + L.line.w + 10, L.line.y - 30, 16); R('clearWhen', L.line.x + L.line.w - 12, L.line.y - 52, 44, 44); }
+    if (log.when != null) { drawSymbol(ctx, 'clear', L.line.x + L.line.w + 2, L.line.y + 30, 16); R('clearWhen', L.line.x + L.line.w - 20, L.line.y + 8, 44, 44); }
   }
 
-  // At home: the travel card with the student's answers. No judgement.
+  // Travelling home: the robot sums up on the whole screen.
+  function drawSpeech() {
+    robotBox({ x: 40, y: 60, w: TW - 80, h: TH - 120 }, speech, 40);
+  }
+
+  // At home: the travel card. The student's guess beside the overlap from the traces, the marked
+  // objects and the robot's open question. No judgement.
   function drawCard() {
-    smallLabel('Rejsekort', 40, 50, AMBER, 30, 'left');
-    regionPin({ x: 40, y: 90, w: 520, h: 340 }, log.pin);
-    const ev = (list, x, y) => list.forEach((id, i) => thumb(id, x + i * 86, y, 76));
-    ev(log.whereEv, 40, 445);
-    pairSlot({ x: 640, y: 90, w: 220, h: 220 }, log.pair[0], 'cardA');
-    pairSlot({ x: 1020, y: 90, w: 220, h: 220 }, log.pair[1], 'cardB');
-    drawSymbol(ctx, 'notmatch', 940, 200, 34, AMBER);
-    timeline({ x: 640, y: 360, w: 600, h: 120 }, log.when, false);
-    ev(log.whenEv, 640, 520);
-    regions = regions.filter((r) => !r.id.startsWith('drop:'));
+    const data = view.data, ev = weighEvidence(data, log.marked), said = robotLines(data, log.marked);
+    smallLabel('Rejsekort', 40, 45, AMBER, 30, 'left');
+    smallLabel('Dit gæt', 40, 92, 'rgba(223,240,242,0.7)', 24, 'left');
+    smallLabel('Sporene', 420, 92, 'rgba(223,240,242,0.7)', 24, 'left');
+    // Same shape as the logbook map (2:1), so the pin lands where it was placed.
+    mapWithPin({ x: 40, y: 110, w: 360, h: 180 }, log.pin, null);
+    mapWithPin({ x: 420, y: 110, w: 360, h: 180 }, null, ev, false);
+    robotBox({ x: 800, y: 110, w: 440, h: 230 }, said.ready ? [said.lines[1]] : null, 24);
+    timeline({ x: 60, y: 385, w: 1160, h: 110 }, log.when, ev, false);
+    log.marked.forEach((id, i) => thumb(id, 40 + i * 76, 518, 66, true));
     tile({ x: 640, y: 600, w: 600, h: 80 }, 'go');
     drawSymbol(ctx, 'door', 940, 640, 28, AMBER);
     R('again', 640, 600, 600, 80);
@@ -220,7 +299,8 @@ export function buildTerminal({ mapDrawer }) {
   function draw() {
     regions = [];
     frame();
-    if (view.finished) { drawCard(); }
+    if (view.finished) drawCard();
+    else if (view.jumpingHome && speech) drawSpeech();
     else {
       header();
       if (tab === 'zones') drawZones();
@@ -229,8 +309,6 @@ export function buildTerminal({ mapDrawer }) {
       else drawLog();
       tabs();
     }
-    // An object being dragged follows the pointer.
-    if (drag && drag.kind === 'item' && drag.moved) { ctx.globalAlpha = 0.85; thumb(drag.id, drag.x - 40, drag.y - 40, 80, true); ctx.globalAlpha = 1; }
     tex.needsUpdate = true;
   }
 
@@ -239,67 +317,54 @@ export function buildTerminal({ mapDrawer }) {
   const toXY = (uv) => [uv.x * TW, (1 - uv.y) * TH];
   const setWhen = (x) => { log.when = Math.min(1, Math.max(0, (x - L.line.x) / L.line.w)); };
 
-  function placeItem(target, id) {
-    if (!id) return false;
-    if (target === 'drop:where') { if (!log.whereEv.includes(id) && log.whereEv.length < 3) log.whereEv.push(id); return true; }
-    if (target === 'drop:when') { if (!log.whenEv.includes(id) && log.whenEv.length < 3) log.whenEv.push(id); return true; }
-    if (target === 'drop:pairA') { log.pair[0] = id; if (log.pair[1] === id) log.pair[1] = null; return true; }
-    if (target === 'drop:pairB') { log.pair[1] = id; if (log.pair[0] === id) log.pair[0] = null; return true; }
-    return false;
-  }
-
   const api = {
     mesh,
     get log() { return log; },
-    // At least one field filled: pin, time marker, or a pair of objects.
-    filled() { return !!(log.pin || log.when != null || (log.pair[0] && log.pair[1])); },
-    reset() { log = emptyLog(); tab = 'zones'; selected = null; drag = null; labIdx = -1; labCount = 0; dirty = true; },
+    // Enough evidence marked to travel home.
+    ready() { return !!view && log.marked.length >= view.data.evidence.minItems; },
+    // Asked to travel home: with enough evidence the robot sums up (true); otherwise it asks for more (false).
+    requestHome() {
+      if (!view) return false;
+      const said = robotLines(view.data, log.marked);
+      speech = said.lines; dirty = true;
+      if (!said.ready) tab = 'log';
+      return said.ready;
+    },
+    verdict() { return view ? robotLines(view.data, log.marked) : null; },
+    reset() { log = emptyLog(); tab = 'zones'; speech = null; drag = null; labIdx = -1; labCount = 0; dirty = true; },
     showTab(t) { if (TABS.includes(t)) { tab = t; dirty = true; } },
     // Redraw when anything on screen changed.
     update(v) {
       view = v;
-      const key = [v.finished, v.year, v.doorOpen, v.homeOn, v.zoneButtons.map((z) => z.id + z.state).join(), v.scanned.join(), v.map.clues.sharp, v.map.clues.links.length, Math.round(v.map.x), Math.round(v.map.z)].join('|');
+      const key = [v.finished, v.jumpingHome, v.year, v.doorOpen, v.homeOn, v.zoneButtons.map((z) => z.id + z.state).join(), v.scanned.join(), v.map.clues.sharp, v.map.clues.links.length, Math.round(v.map.x), Math.round(v.map.z)].join('|');
       if (key !== lastKey) { lastKey = key; dirty = true; }
       if (dirty) { draw(); dirty = false; }
     },
     down(uv) {
       const [x, y] = toXY(uv), r = hitAt(x, y);
       pending = r;
-      if (!r) return;
-      if (r.id.startsWith('item:')) drag = { kind: 'item', id: r.item, x, y, x0: x, y0: y, moved: false };
-      else if (r.id === 'timeline') { drag = { kind: 'marker' }; setWhen(x); dirty = true; }
+      if (r && r.id === 'timeline') { drag = { kind: 'marker' }; setWhen(x); dirty = true; }
     },
     move(uv) {
       if (!drag) return;
-      const [x, y] = toXY(uv);
-      if (drag.kind === 'marker') { setWhen(x); dirty = true; return; }
-      drag.x = x; drag.y = y;
-      if (Math.hypot(x - drag.x0, y - drag.y0) > 18) drag.moved = true;
-      dirty = true;
+      setWhen(toXY(uv)[0]); dirty = true;
     },
-    // Returns an action for the app ('zone:A', 'door', 'home', 'again') or null.
+    // Returns an action for the app ('A'..'D', 'door', 'home', 'again') or null.
     up(uv) {
       const [x, y] = toXY(uv), r = hitAt(x, y);
       let action = null;
-      if (drag && drag.kind === 'item') {
-        if (drag.moved) { if (r) placeItem(r.id, drag.id); selected = null; }
-        else selected = selected === drag.id ? null : drag.id;   // tap: choose, then tap a field
-        drag = null; dirty = true; pending = null;
-        return null;
-      }
-      if (drag && drag.kind === 'marker') { drag = null; pending = null; dirty = true; return null; }
+      if (drag) { drag = null; pending = null; dirty = true; return null; }
       if (r && pending && r.id === pending.id) {
         const id = r.id;
-        if (id.startsWith('tab:')) { tab = id.slice(4); selected = null; }
+        if (id.startsWith('tab:')) tab = id.slice(4);
         else if (id === 'labPrev' || id === 'labNext') { if (labCount > 1) labIdx = (labIdx + (id === 'labNext' ? 1 : -1) + labCount) % labCount; }
-        else if (id === 'logmap') { if (selected && placeItem('drop:where', selected)) selected = null; else log.pin = regionProjection(L.map).toLonLat(x, y); }
+        else if (id === 'logmap') log.pin = regionProjection(L.map).toLonLat(x, y);
         else if (id === 'clearPin') log.pin = null;
         else if (id === 'clearWhen') log.when = null;
-        else if (id.startsWith('rm:')) { const [, key, i] = id.split(':'); (key === 'where' ? log.whereEv : log.whenEv).splice(Number(i), 1); }
-        else if (id.startsWith('drop:')) {
-          if (selected) { placeItem(id, selected); selected = null; }
-          else if (id === 'drop:pairA') log.pair[0] = null;
-          else if (id === 'drop:pairB') log.pair[1] = null;
+        else if (id.startsWith('item:')) {
+          const it = id.slice(5), i = log.marked.indexOf(it);
+          if (i >= 0) log.marked.splice(i, 1); else log.marked.push(it);
+          speech = null;   // the robot's last words no longer fit
         }
         else if (id.startsWith('zone:')) action = id.slice(5);
         else action = id;   // door, home, again

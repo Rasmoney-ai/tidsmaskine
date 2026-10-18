@@ -173,7 +173,11 @@ const app = {
   press(id) {
     if (!id) return;
     if (id === 'again') return app.restart();
-    if (id === 'home' && !terminal.filled()) return;   // travel home needs at least one logbook field
+    if (id === 'home') {
+      // Travel home needs enough marked evidence; the robot sums up or asks for more.
+      const k = timeline.clip.kind;
+      if (state.outside || !(k === 'zone' || k === 'hold') || !terminal.requestHome()) return;
+    }
     if (id === 'labPrev' || id === 'labNext') return capsule.panels.labStep(id === 'labNext' ? 1 : -1);
     if (id === 'door') { if (!state.outside && timeline.doorOpen(Math.max(clock.t, 0))) fadeThen(() => setOutside(true)); return; }
     if (id === 'enter') { if (state.outside) fadeThen(() => setOutside(false)); return; }
@@ -238,7 +242,8 @@ function mapClues() {
 // The student's bid is saved in this browser when travelling home (no export yet).
 let savedFor = null;
 function saveBid() {
-  const bid = { ...terminal.log, scanned: [...scanner.collected], savedAt: new Date().toISOString() };
+  const v = terminal.verdict() || {};
+  const bid = { ...terminal.log, scanned: [...scanner.collected], time: v.time || null, robot: v.lines || [], savedAt: new Date().toISOString() };
   try {
     const all = JSON.parse(localStorage.getItem('tidsmaskinen.bud') || '[]');
     all.push(bid);
@@ -257,7 +262,7 @@ function buttons(st) {
   }));
   return [...zones,
     { id: 'door', label: 'Gå ud', row: 1, state: st.doorOpen ? 'go' : 'off' },
-    { id: 'home', label: 'Rejs hjem', row: 1, state: canChoose && terminal.filled() ? 'on' : 'off' }];
+    { id: 'home', label: 'Rejs hjem', row: 1, state: canChoose && terminal.ready() ? 'on' : 'off' }];
 }
 
 // Desktop walking: inside the capsule, or around the spot outside the door.
@@ -331,7 +336,7 @@ renderer.setAnimationLoop((now, frame) => {
   const zb = buttons(st);
   terminal.update({
     finished: timeline.finished, year: st.year, doorOpen: st.doorOpen,
-    homeOn: (timeline.clip.kind === 'zone' || timeline.clip.kind === 'hold') && terminal.filled(),
+    homeOn: timeline.clip.kind === 'zone' || timeline.clip.kind === 'hold', jumpingHome: timeline.clipId === 'jumpHome',
     zoneButtons: zb.filter((b) => b.row === 0).map((b) => ({ id: b.id, name: b.label, state: b.state })),
     scanned: [...scanner.collected], data, map: { x: st.x, z: st.z, yaw: st.yaw, clues: mapClues() },
   });

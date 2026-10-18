@@ -1,18 +1,37 @@
 {
   "expedition": "Ekspedition 1",
-  "note": "Indhold skrevet til milepæl 2. Skal faktatjekkes af en fagperson før elevtest. 'trace': 'her' = sporet peger på stedet, 'ud' = sporet peger på forbindelser udadtil. 'link' angiver hvor en forbindelseslinje skal pege hen på kortet.",
+  "note": "Indhold til milepæl 5 (bevisfasen). Skal faktatjekkes af en fagperson før elevtest. 'trace': 'her' = sporet peger på stedet, 'ud' = sporet peger på forbindelser udadtil. 'dating' = omtrentligt tidsinterval i år e.Kr., som genstanden lægger på tidslinjen. 'zone' i 'evidence' = område på kortet (id i 'regions'). For 'ud'-spor viser zonen oprindelsen, ikke fundstedet. 'revealsPlace' = genstanden afslører stedets navn.",
   "items": {
     "soelvmoent": {
       "name": "Sølvmønt",
       "zone": "Landsbyen",
       "found": "På en bænk ved ildstedet",
       "trace": "ud",
-      "link": { "label": "Langt mod øst", "region": "centralasien" },
+      "link": {
+        "label": "Langt mod øst",
+        "region": "centralasien"
+      },
       "analyses": [
-        { "type": "Materiale", "text": "Sølv. Indskrift med et ukendt skrifttegn, der løber i ringe." },
-        { "type": "Oprindelse", "text": "Isotoperne i sølvet passer med miner langt mod øst, flere måneders rejse herfra." },
-        { "type": "Spor", "text": "Mønten har hakker i kanten. Nogen har testet, om sølvet var ægte." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Sølv. Indskrift med et ukendt skrifttegn, der løber i ringe."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Isotoperne i sølvet passer med miner langt mod øst, flere måneders rejse herfra."
+        },
+        {
+          "type": "Spor",
+          "text": "Mønten har hakker i kanten. Nogen har testet, om sølvet var ægte."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          900,
+          1000
+        ],
+        "zone": "centralasien"
+      }
     },
     "vaevevaegt": {
       "name": "Vævevægt",
@@ -20,32 +39,80 @@
       "found": "Under den halvfærdige væv. Der ligger mange ens stykker",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Brændt ler, formet som en ring." },
-        { "type": "Oprindelse", "text": "Leret passer med lerjorden lige her på stedet." },
-        { "type": "Spor", "text": "Slid i hullet efter en tråd, der har hængt stramt." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Brændt ler, formet som en ring."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Leret passer med lerjorden lige her på stedet."
+        },
+        {
+          "type": "Spor",
+          "text": "Slid i hullet efter en tråd, der har hængt stramt."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          700,
+          1100
+        ],
+        "zone": "jelling_egn"
+      }
     },
     "hvaessesten": {
       "name": "Hvæssesten",
       "zone": "Landsbyen",
       "found": "Ved brændestablen, ved siden af øksen",
       "trace": "ud",
-      "link": { "label": "Mod nord over havet", "region": "norge" },
+      "link": {
+        "label": "Mod nord over havet",
+        "region": "norge"
+      },
       "analyses": [
-        { "type": "Materiale", "text": "Lys skifer, slebet blank på den ene side." },
-        { "type": "Oprindelse", "text": "Skiferen findes ikke i undergrunden her. Den passer med stenbrud mod nord, på den anden side af havet." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Lys skifer, slebet blank på den ene side."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Skiferen findes ikke i undergrunden her. Den passer med stenbrud mod nord, på den anden side af havet."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          800,
+          1200
+        ],
+        "zone": "sydnorge"
+      }
     },
     "kam": {
       "name": "Kam",
       "zone": "Landsbyen",
       "found": "Inde i døråbningen til det store hus",
       "trace": "ud",
-      "link": { "label": "Mod nord", "region": "norge" },
+      "link": {
+        "label": "Mod nord",
+        "region": "norge"
+      },
       "analyses": [
-        { "type": "Materiale", "text": "Tak fra rensdyr, samlet med små nitter af jern." },
-        { "type": "Oprindelse", "text": "Der lever ingen rensdyr i dette landskab. Taket må være kommet langvejs fra." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Tak fra rensdyr, samlet med små nitter af jern."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Der lever ingen rensdyr i dette landskab. Taket må være kommet langvejs fra."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          800,
+          1100
+        ],
+        "zone": "norge"
+      }
     },
     "toervblok": {
       "name": "Tørveblok",
@@ -53,10 +120,26 @@
       "found": "I en stabel ved foden af den store høj",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Græstørv, skåret i firkantede blokke." },
-        { "type": "Pollen", "text": "Pollen fra græs, lyng og korn. Landskabet omkring er åbent og bruges til græsning og agerbrug." },
-        { "type": "Spor", "text": "Der er tusindvis af ens blokke. Højen er bygget af tørv fra et meget stort område." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Græstørv, skåret i firkantede blokke."
+        },
+        {
+          "type": "Pollen",
+          "text": "Pollen fra græs, lyng og korn. Landskabet omkring er åbent og bruges til græsning og agerbrug."
+        },
+        {
+          "type": "Spor",
+          "text": "Der er tusindvis af ens blokke. Højen er bygget af tørv fra et meget stort område."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          900,
+          1000
+        ],
+        "zone": "jelling_egn"
+      }
     },
     "thorshammer": {
       "name": "Lille hammer",
@@ -64,9 +147,22 @@
       "found": "Tabt i græsset ved højen",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Sølv, med en lille ring til at bære den i en snor om halsen." },
-        { "type": "Spor", "text": "Slidt blank af hud og tøj. Den er båret i lang tid." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Sølv, med en lille ring til at bære den i en snor om halsen."
+        },
+        {
+          "type": "Spor",
+          "text": "Slidt blank af hud og tøj. Den er båret i lang tid."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          900,
+          1050
+        ],
+        "zone": "skandinavien"
+      }
     },
     "spade": {
       "name": "Spade",
@@ -74,9 +170,22 @@
       "found": "Stukket ned i jorden ved tørvestablen",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Egetræ med en skoning af jern på bladet." },
-        { "type": "Oprindelse", "text": "Jernet passer med myremalm fra moserne i egnen." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Egetræ med en skoning af jern på bladet."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Jernet passer med myremalm fra moserne i egnen."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          700,
+          1200
+        ],
+        "zone": "jylland"
+      }
     },
     "store_sten": {
       "name": "Den store sten",
@@ -84,11 +193,31 @@
       "found": "Midt mellem højene. Arbejdet er ikke helt færdigt",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Granit. Stenen er formentlig ført hertil af isen for meget længe siden og fundet i nærheden." },
-        { "type": "Billeder", "text": "Tre sider. På én ses en figur med udstrakte arme, viklet ind i bånd. På en anden et stort dyr, der kæmper med en slange." },
-        { "type": "Farver", "text": "Rester af rød, sort og blå maling i furerne." },
-        { "type": "Tegn", "text": "En lang indskrift med runer. Et af ordene kan læses som TANMAURK." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Granit. Stenen er formentlig ført hertil af isen for meget længe siden og fundet i nærheden."
+        },
+        {
+          "type": "Billeder",
+          "text": "Tre sider. På én ses en figur med udstrakte arme, viklet ind i bånd. På en anden et stort dyr, der kæmper med en slange."
+        },
+        {
+          "type": "Farver",
+          "text": "Rester af rød, sort og blå maling i furerne."
+        },
+        {
+          "type": "Tegn",
+          "text": "En lang indskrift med runer. Et af ordene kan læses som TANMAURK."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          960,
+          1000
+        ],
+        "zone": "jelling_egn",
+        "revealsPlace": true
+      }
     },
     "lille_sten": {
       "name": "Den lille sten",
@@ -96,20 +225,50 @@
       "found": "Lidt væk fra den store sten",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Granit, mere forvitret end den store sten. Den er ældre." },
-        { "type": "Tegn", "text": "Runer uden billeder. Indskriften nævner en kvinde og et ord, der kan læses som TANMARKAR." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Granit, mere forvitret end den store sten. Den er ældre."
+        },
+        {
+          "type": "Tegn",
+          "text": "Runer uden billeder. Indskriften nævner en kvinde og et ord, der kan læses som TANMARKAR."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          900,
+          970
+        ],
+        "zone": "jelling_egn",
+        "revealsPlace": true
+      }
     },
     "kors": {
       "name": "Lille kors",
       "zone": "Runestenen",
       "found": "På jorden ved den lille træbygning",
       "trace": "ud",
-      "link": { "label": "Mod syd", "region": "frankerriget" },
+      "link": {
+        "label": "Mod syd",
+        "region": "frankerriget"
+      },
       "analyses": [
-        { "type": "Materiale", "text": "Sølv, med en lille ring til en snor om halsen." },
-        { "type": "Oprindelse", "text": "Udsmykningen ligner arbejde fra riger mod syd." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Sølv, med en lille ring til en snor om halsen."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Udsmykningen ligner arbejde fra riger mod syd."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          950,
+          1100
+        ],
+        "zone": "frankerriget"
+      }
     },
     "mejsel": {
       "name": "Mejsel",
@@ -117,9 +276,22 @@
       "found": "Lagt fra sig ved foden af den store sten",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Jern, med en spids, der er slidt og slebet mange gange." },
-        { "type": "Spor", "text": "Stenstøv af granit i rillerne." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Jern, med en spids, der er slidt og slebet mange gange."
+        },
+        {
+          "type": "Spor",
+          "text": "Stenstøv af granit i rillerne."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          700,
+          1200
+        ],
+        "zone": "skandinavien"
+      }
     },
     "egestolpe": {
       "name": "Egestolpe",
@@ -127,11 +299,30 @@
       "found": "I den lange række af stolper",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Kløvet egetræ, sat dybt i jorden." },
-        { "type": "Årringe", "text": "Årringene viser, at træet blev fældet for 1058 år siden, set fra din tid." },
-        { "type": "Oprindelse", "text": "Årringsmønstret passer med egetræer fra denne egn." },
-        { "type": "Spor", "text": "Rækken af stolper er meget lang og indhegner hele pladsen." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Kløvet egetræ, sat dybt i jorden."
+        },
+        {
+          "type": "Årringe",
+          "text": "Årringene viser, at træet blev fældet for 1058 år siden, set fra din tid."
+        },
+        {
+          "type": "Oprindelse",
+          "text": "Årringsmønstret passer med egetræer fra denne egn."
+        },
+        {
+          "type": "Spor",
+          "text": "Rækken af stolper er meget lang og indhegner hele pladsen."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          966,
+          970
+        ],
+        "zone": "jelling_egn"
+      }
     },
     "oekse": {
       "name": "Økse",
@@ -139,9 +330,99 @@
       "found": "Hugget fast i en brændeklods ved porten",
       "trace": "her",
       "analyses": [
-        { "type": "Materiale", "text": "Jern og asketræ." },
-        { "type": "Spor", "text": "Friske spåner af eg på jorden. Nogen har arbejdet her for kort tid siden." }
-      ]
+        {
+          "type": "Materiale",
+          "text": "Jern og asketræ."
+        },
+        {
+          "type": "Spor",
+          "text": "Friske spåner af eg på jorden. Nogen har arbejdet her for kort tid siden."
+        }
+      ],
+      "evidence": {
+        "dating": [
+          800,
+          1100
+        ],
+        "zone": "jylland"
+      }
+    }
+  },
+  "regions": {
+    "jelling_egn": {
+      "label": "Her på egnen",
+      "lat": 55.756,
+      "lon": 9.42,
+      "radiusKm": 25
+    },
+    "jylland": {
+      "label": "Denne del af landet",
+      "lat": 56.0,
+      "lon": 9.3,
+      "radiusKm": 120
+    },
+    "skandinavien": {
+      "label": "Det sydlige Skandinavien",
+      "lat": 57.0,
+      "lon": 11.0,
+      "radiusKm": 450
+    },
+    "sydnorge": {
+      "label": "Mod nord over havet",
+      "lat": 59.47,
+      "lon": 8.03,
+      "radiusKm": 120
+    },
+    "norge": {
+      "label": "Mod nord",
+      "lat": 61.5,
+      "lon": 9.5,
+      "radiusKm": 350
+    },
+    "centralasien": {
+      "label": "Langt mod øst",
+      "lat": 39.65,
+      "lon": 66.96,
+      "radiusKm": 700
+    },
+    "frankerriget": {
+      "label": "Mod syd",
+      "lat": 50.5,
+      "lon": 7.0,
+      "radiusKm": 350
+    }
+  },
+  "evidence": {
+    "minItems": 5,
+    "rules": "Tidszonen er overlappet (fællesmængden) af de markerede genstandes 'dating'. Stedet er overlappet af 'her'-zonerne. 'Ud'-zonerne lægges ikke i overlappet, men tegnes ved deres oprindelse med en linje til overlappet af 'her'-zonerne (ingen linje, hvis der endnu ikke er nogen 'her'-zone).",
+    "timePhrases": [
+      {
+        "maxWidth": 10,
+        "text": "omkring år {mid}"
+      },
+      {
+        "maxWidth": 60,
+        "text": "i slutningen af 900-tallet"
+      },
+      {
+        "maxWidth": 200,
+        "text": "engang mellem år {from} og {to}"
+      },
+      {
+        "maxWidth": 99999,
+        "text": "i en tid, mine data endnu ikke kan bestemme præcist"
+      }
+    ],
+    "placePhrases": {
+      "revealed": "i Jelling. Stenen kalder landet TANMAURK",
+      "jelling_egn": "et sted i det sydlige Skandinavien, i et åbent landbrugslandskab",
+      "default": "et sted i det sydlige Skandinavien"
+    },
+    "robot": {
+      "tooFew": "Mine tidsdata er stadig i stykker. Jeg har brug for flere spor. Markér mindst {missing} mere.",
+      "done": "Tak for din undersøgelse. Sporene stemmer nu. Vi er {place}, {time}. Mine tidsdata er repareret.",
+      "openQuestionBoth": "Men én ting kan mine data ikke forklare: Hvorfor ligger der både en lille hammer og et lille kors på samme plads?",
+      "openQuestionDefault": "Men én ting kan mine data ikke forklare: Hvem byggede de store høje og sten her, og hvorfor?"
     }
   }
 }

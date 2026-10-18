@@ -131,6 +131,11 @@ export function drawSymbol(ctx, name, x, y, r, color = LINE) {
     case 'next': poly([[-0.5, -0.8], [0.6, 0], [-0.5, 0.8]]); break;
     case 'notmatch': line([[-0.8, -0.3], [0.8, -0.3]]); line([[-0.8, 0.3], [0.8, 0.3]]); line([[0.4, -0.85], [-0.4, 0.85]]); break;
     case 'clear': ring(0, 0, 0.8); line([[-0.4, -0.4], [0.4, 0.4]]); line([[0.4, -0.4], [-0.4, 0.4]]); break;
+    case 'check': line([[-0.6, 0], [-0.15, 0.5], [0.65, -0.55]]); break;
+    case 'robot':   // the capsule's robot: a round-cornered head, two eyes, an antenna
+      poly([[-0.75, -0.45], [0.75, -0.45], [0.85, -0.3], [0.85, 0.6], [0.7, 0.75], [-0.7, 0.75], [-0.85, 0.6], [-0.85, -0.3]]);
+      ring(-0.35, 0.12, 0.17, true); ring(0.35, 0.12, 0.17, true);
+      line([[0, -0.45], [0, -0.8]]); ring(0, -0.88, 0.09, true); break;
     case 'pin':
       ctx.fillStyle = AMBER; ctx.strokeStyle = '#0d1013';
       ctx.beginPath(); ctx.moveTo(0, r); ctx.bezierCurveTo(-0.7 * r, 0, -0.7 * r, -1.1 * r, 0, -1.1 * r); ctx.bezierCurveTo(0.7 * r, -1.1 * r, 0.7 * r, 0, 0, r); ctx.fill(); ctx.stroke();
