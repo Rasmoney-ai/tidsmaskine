@@ -134,7 +134,24 @@ export function texturedProp(gltf) {
 // Model with named parts kept separate (fire with flames, crow wings).
 export function parts(gltf) {
   const root = gltf.scene, byName = {};
-  root.traverse((o) => { if (o.isMesh) { o.material = MAT.world; byName[o.name] = o; } });
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    // Same treatment as static models: bake the material color into vertex colors (a part without them,
+    // like the fire's flames, would render black) and turn inside-out parts outward.
+    const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    const n = g.attributes.position.count, vc = g.attributes.color, c = o.material.color || new THREE.Color(1, 1, 1);
+    const col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) col.set(vc ? [vc.getX(i) * c.r, vc.getY(i) * c.g, vc.getZ(i) * c.b] : [c.r, c.g, c.b], i * 3);
+    for (const name of Object.keys(g.attributes)) if (name !== 'position') g.deleteAttribute(name);
+    orientOutward(g);
+    g.computeVertexNormals();
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    o.geometry = g;
+    // Glowing parts (emissive in the file, e.g. flames) stay bright: unlit.
+    const glows = o.material.emissive && o.material.emissive.getHex() !== 0;
+    o.material = glows ? MAT.glow : MAT.world;
+    byName[o.name] = o;
+  });
   return { root, parts: byName };
 }
 

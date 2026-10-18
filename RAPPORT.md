@@ -10,6 +10,7 @@
 - **Hænder:** De hjemmelavede handsker er erstattet af three.js' `XRHandModelFactory` med 'mesh'-modellen. Koden ligger i `vendor/three/addons/webxr/` (three r170), modelfilerne `left.glb` og `right.glb` i `vendor/hands/` (fra @webxr-input-profiles/assets 1.0.18, MIT-licens medfølger). Intet hentes fra en CDN.
 - Scanner og træk i logbogen bruger stadig input-kildernes pegestråle (knib), så de virker med hænderne som før.
 - **Rettelse (efter Rasmus' test):** Mange modeller fra Claude Design havde dele med fladerne vendt indad (fx tønden 100 %, langhuset 95 %). GLB-filerne er dobbeltsidede, så det ses ikke dér, men vi tegner kun forsiden, så man så indersiden. Nu vendes hver del udad ved indlæsning i `models.js` (lukkede dele efter deres rumfang, åbne dele efter hvilken vej det meste af fladen vender). Trekantantallet er uændret.
+- **Rettelse:** Ilden var sort. Flammerne i ildstedsmodellen har ingen farver på hjørnepunkterne, og appens materiale læser farven derfra. Nu får flammerne farven fra filen og lyser selv (ubelyst materiale).
 - **Testhjælp:** `?passthrough=1` efterligner passthrough på pc (klasselokalet er en grå flade).
 - DESIGN.md og CLAUDE.md er opdateret. Rapport-reglen er tilføjet under Arbejdsform i CLAUDE.md.
 
@@ -30,7 +31,7 @@
 
 1. Tryk "Gå ind i VR". Kan du se klasselokalet gennem kapslens vinduer, og er gulv og loft tætte?
 2. Se tidsspringet: dækker tågen blødt, og kommer fortiden frem uden blink?
-3. Gå ud i Landsbyen ved bænken: står langhuset, tønderne og væven hele og ikke hule?
+3. Gå ud i Landsbyen ved bænken: står langhuset, tønderne og væven hele og ikke hule? Lyser ilden orange?
 4. Hold hænderne op: ses de som realistiske hænder? Virker scanneren (knib) udenfor og træk i logbogen?
 5. Rejs hjem: letter tågen til klasselokalet?
 6. Tjek billedfrekvensen med `?debug=1`.
