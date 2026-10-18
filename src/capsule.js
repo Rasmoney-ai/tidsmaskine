@@ -2,7 +2,7 @@
 // No furniture: people can walk around. Screen panels along the windows, a halo light, and the mist shell.
 import * as THREE from 'three';
 import { Builder, G, MAT, canvasTexture, wrapText } from './toon.js';
-import { CAPSULE, seatPosition, WORLD } from './config.js';
+import { CAPSULE, START, WORLD } from './config.js';
 import { drawItemIcon, drawAnalysisIcon } from './icons.js';
 import { buildTerminal } from './terminal.js';
 
@@ -38,10 +38,12 @@ function ring(b, r, y, h, thick, color) {
 
 // The door: in the front side (side 3, facing -z). W = opening width, TOP = top of the opening.
 const DOOR_SIDE = 3;
-const DOOR = { R: 1.0, CY: 1.38 };   // radius and center height of the round opening
+const DOOR = { R: 0.58, CY: 1.0 };   // radius and center height of the round opening (fits one side)
 
-// Sides with a screen panel (index k of sideMid). Side 3 is the front (-z) and stays free for the view.
-export const PANEL_SIDES = { 2: 'guide', 4: 'guide', 1: 'map', 5: 'status', 0: 'lab', 6: 'lab', 7: 'guide' };
+// Sides with a screen panel (scenery; index k of sideMid). The front (3) and its neighbours stay free for the
+// view and the door; the terminal stands in front of the student.
+export const PANEL_SIDES = { 1: 'map', 5: 'status', 0: 'lab', 6: 'lab', 7: 'guide' };
+const PANEL_IN = 0.3;   // how far the consoles stand in from the glass
 
 function cabinShell() {
   const { RADIUS: R, SILL, WALL_TOP: TOP, DOME_TOP } = CAPSULE;
@@ -49,8 +51,8 @@ function cabinShell() {
   // Floor: dark concrete slab, radial seams and concentric rings.
   b.add(G.cyl(R, R, 0.12, 8), FLOOR, { pos: [0, -0.06, 0], rot: [0, Math.PI / 8, 0] });
   for (let k = 0; k < 8; k++) { const [x, z] = corner(k, R - 0.3); beam(b, [x * 0.33, 0.003, z * 0.33], [x, 0.003, z], 0.025, 0.006, SEAM); }
-  for (const r of [1.15, 2.3]) b.add(G.torus(r, 0.012, 3, 8), SEAM, { pos: [0, 0.004, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
-  b.add(G.cyl(0.9, 0.9, 0.012, 8), SEAM, { pos: [0, 0.006, 0], rot: [0, Math.PI / 8, 0] });
+  for (const r of [0.6, 1.2]) b.add(G.torus(r, 0.012, 3, 8), SEAM, { pos: [0, 0.004, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  b.add(G.cyl(0.45, 0.45, 0.012, 8), SEAM, { pos: [0, 0.006, 0], rot: [0, Math.PI / 8, 0] });
   // Low plinth wall with a chamfered top and a recessed shadow gap.
   ring(b, R, SILL / 2, SILL, 0.16, GRAPHITE);
   ring(b, R - 0.1, SILL + 0.012, 0.025, 0.24, CONCRETE);
@@ -64,7 +66,7 @@ function cabinShell() {
   // Heavy top beam, faceted ceiling panels with seams, and the oculus frame.
   ring(b, R, TOP + 0.08, 0.26, 0.3, GRAPHITE);
   ring(b, R - 0.18, TOP - 0.07, 0.04, 0.08, DARK);
-  const rTop = 1.1, domeH = DOME_TOP - TOP - 0.2, y0 = TOP + 0.2;
+  const rTop = 0.6, domeH = DOME_TOP - TOP - 0.2, y0 = TOP + 0.2;
   b.add(new THREE.CylinderGeometry(rTop, R - 0.1, domeH, 8, 1, true), CONCRETE, { pos: [0, y0 + domeH / 2, 0], rot: [0, Math.PI / 8, 0] });
   for (let k = 0; k < 8; k++) {
     const [x0, z0] = corner(k, R - 0.12), [x1, z1] = corner(k, rTop);
@@ -76,9 +78,9 @@ function cabinShell() {
   b.add(new THREE.CircleGeometry(rTop, 8), CONCRETE, { pos: [0, DOME_TOP + 0.03, 0], rot: [Math.PI / 2, 0, Math.PI / 8] });
   // Screen consoles along the windows: slim pedestal, angled screen housing.
   for (const k of Object.keys(PANEL_SIDES).map(Number)) {
-    const a = sideMid(k), d = R * APO - 0.42, sx = Math.sin(a), sz = Math.cos(a);
-    b.add(G.box(0.86, 0.8, 0.12), GRAPHITE, { pos: [d * sx + 0.1 * sx, 0.4, d * sz + 0.1 * sz], rot: [0, a, 0] });
-    b.add(G.box(1.0, 0.58, 0.05), DARK, { pos: [d * sx, 1.0, d * sz], rot: [-0.6, a + Math.PI, 0, 'YXZ'] });
+    const a = sideMid(k), d = R * APO - PANEL_IN, sx = Math.sin(a), sz = Math.cos(a);
+    b.add(G.box(0.6, 0.8, 0.1), GRAPHITE, { pos: [d * sx + 0.08 * sx, 0.4, d * sz + 0.08 * sz], rot: [0, a, 0] });
+    b.add(G.box(0.72, 0.42, 0.05), DARK, { pos: [d * sx, 1.0, d * sz], rot: [-0.6, a + Math.PI, 0, 'YXZ'] });
   }
   const shell = b.mesh(CAB);
 
@@ -92,8 +94,8 @@ function cabinShell() {
   }
   g.add(G.torus(rTop - 0.1, 0.015, 3, 8), LIGHT, { pos: [0, DOME_TOP - 0.05, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
   for (const k of Object.keys(PANEL_SIDES).map(Number)) {
-    const a = sideMid(k), d = R * APO - 0.36;
-    g.add(G.box(0.7, 0.012, 0.012), AMBER, { pos: [d * Math.sin(a), 0.62, d * Math.cos(a)], rot: [0, a, 0] });
+    const a = sideMid(k), d = R * APO - PANEL_IN + 0.06;
+    g.add(G.box(0.5, 0.012, 0.012), AMBER, { pos: [d * Math.sin(a), 0.62, d * Math.cos(a)], rot: [0, a, 0] });
   }
   const glow = g.mesh(GLO);
 
@@ -118,9 +120,9 @@ function cabinShell() {
 function halo() {
   const group = new THREE.Group();
   const mat = new THREE.MeshBasicMaterial({ color: LIGHT, fog: false, toneMapped: false });
-  const top = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.018, 4, 64), mat);
+  const top = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.018, 4, 64), mat);
   top.rotation.x = Math.PI / 2; top.position.y = CAPSULE.DOME_TOP - 0.55;
-  const floor = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.012, 3, 64), mat);
+  const floor = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.012, 3, 64), mat);
   floor.rotation.x = Math.PI / 2; floor.position.y = 0.012;
   group.add(top, floor);
   return { group, mat, top };
@@ -193,7 +195,7 @@ function drawButtons(ctx, rects) {
 }
 
 function panels(mapDrawer) {
-  const geo = new THREE.PlaneGeometry(0.9, 0.5);
+  const geo = new THREE.PlaneGeometry(0.64, 0.355);
   const make = () => {
     const { ctx, tex } = canvasTexture(SW, SH);
     return { ctx, tex, mat: new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }), last: '' };
@@ -203,7 +205,7 @@ function panels(mapDrawer) {
   const meshes = [];
   const R = CAPSULE.RADIUS;
   for (const [k, type] of Object.entries(PANEL_SIDES)) {
-    const a = sideMid(Number(k)), d = R * APO - 0.43;
+    const a = sideMid(Number(k)), d = R * APO - PANEL_IN - 0.01;
     const m = new THREE.Mesh(geo, screens[type].mat);
     m.position.set(d * Math.sin(a), 1.0, d * Math.cos(a));
     m.rotation.set(-0.6, a + Math.PI, 0, 'YXZ');
@@ -350,8 +352,8 @@ function door() {
   iris.renderOrder = 6;
   // Sign above the door.
   const { ctx, tex } = canvasTexture(512, 96);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.116), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false, transparent: true }));
-  sign.position.set(0, CY + R + 0.2, zf + 0.06);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.094), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false, transparent: true }));
+  sign.position.set(0, CY + R + 0.22, zf + 0.06);
   let lastSign = null;
   const drawSign = (open) => {
     if (open === lastSign) return; lastSign = open;
@@ -397,7 +399,7 @@ function returnPanel() {
   draw();
   const m = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.3), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
   m.userData.draw = draw;
-  m.position.set(1.45, 1.1, -CAPSULE.RADIUS * APO - 0.35);
+  m.position.set(0.95, 1.1, -CAPSULE.RADIUS * APO - 0.35);
   m.rotation.set(0.25, Math.PI + 0.45, 0, 'YXZ');
   m.visible = false;
   return m;
@@ -424,6 +426,7 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   terminal.mesh.rotation.x = -0.65;
   terminal.mesh.translateZ(0.017);
   term.add(terminal.mesh);
+  term.position.set(START.x, 0, START.z);
   interior.add(term);
   const d = door();
   const back = returnPanel();
@@ -436,7 +439,6 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   interior.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => interiorMats.add(m)); });
   return {
     vehicle, rig, mist, panels: screens, door: d, returnPanel: back, terminal,
-    placeTerminal(seat) { const p = seatPosition(seat); term.position.set(p.x, 0, p.z); },
     // Outside, the capsule is in stealth: the inside shows only through the round door.
     setOutside(on) {
       back.visible = on;
@@ -454,8 +456,8 @@ export function buildCapsule({ mapDrawer = () => {} } = {}) {
   };
 }
 
-// Start place (1-10) on the floor inside, or the spot outside the door. walk = desktop walking offset.
-export function placeRig(rig, seat, walk = { x: 0, z: 0 }, outside = null) {
-  const p = outside || seatPosition(seat);
+// The start place inside, or the spot outside the door. walk = desktop walking offset.
+export function placeRig(rig, walk = { x: 0, z: 0 }, outside = null) {
+  const p = outside || START;
   rig.position.set(p.x + walk.x, 0, p.z + walk.z);
 }

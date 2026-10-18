@@ -1,22 +1,9 @@
-// Start page (start place, enter VR / screen) and desktop keyboard controls.
-import { SEAT_COUNT, PASSTHROUGH } from './config.js';
+// Start page (enter VR / screen) and desktop keyboard controls.
+import { PASSTHROUGH } from './config.js';
 
 export function initUI(app, renderer) {
   const $ = (id) => document.getElementById(id);
-  const start = $('start'), hud = $('hud'), seats = $('seats'), vrBtn = $('enter-vr'), deskBtn = $('enter-desktop');
-
-  for (let n = 1; n <= SEAT_COUNT; n++) {
-    const b = document.createElement('button');
-    b.textContent = n; b.className = 'seat';
-    b.onclick = () => select(n);
-    seats.appendChild(b);
-  }
-  function select(n) {
-    app.setSeat(n);
-    [...seats.children].forEach((b, i) => b.classList.toggle('on', i + 1 === n));
-    const u = new URL(location.href); u.searchParams.set('seat', n); history.replaceState(null, '', u);
-  }
-  select(app.state.seat);
+  const start = $('start'), hud = $('hud'), vrBtn = $('enter-vr'), deskBtn = $('enter-desktop');
 
   // XR support: VR; passthrough (immersive-ar) only when PASSTHROUGH or ?ar=1 asks for it and the headset has it.
   let mode = null;
@@ -67,11 +54,7 @@ export function initUI(app, renderer) {
       case 'KeyE': app.toggleDoor(); break;
       case 'KeyR': app.restart(); break;
       case 'KeyH': hud.classList.toggle('small'); break;
-      default: {
-        const n = e.code.startsWith('Digit') ? parseInt(e.code.slice(5), 10) : NaN;
-        if (n >= 0) select(n === 0 ? 10 : n);
-        return;
-      }
+      default: return;
     }
     e.preventDefault();
   });
@@ -81,7 +64,7 @@ export function initUI(app, renderer) {
     if (hud.hidden) return;
     const tl = app.timeline, c = tl.clip;
     const name = c.name || { intro: 'Afgang', jumpPast: 'Tidsspring', landing: 'Landingsplads', hop: 'Tågespring', jumpHome: 'Tidsspring hjem', home: 'Hjemme' }[tl.clipId];
-    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)} s${app.state.outside ? ' · udenfor' : ''} · plads ${app.state.seat}`
+    status.textContent = `${app.clock.playing ? '▶' : '❚❚'} ${name} ${Math.max(t, 0).toFixed(0)} s${app.state.outside ? ' · udenfor' : ''}`
       + (app.state.debug ? ` · ${app.perf.summary()}` : '');
   };
 }

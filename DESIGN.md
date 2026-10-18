@@ -58,7 +58,7 @@ Eleverne er tidsrejsende detektiver, hvis kapsel er landet et ukendt sted i fort
 
 ## Kapslen
 
-Kapslen er base og arbejdsrum i Villeneuve-stil. **Al betjening sker på én terminal**, der står foran eleven på startpladsen, så alt kan nås inden for 2 × 2 meter. Nederst på terminalen er fire symbolfaner:
+Kapslen er base og arbejdsrum i Villeneuve-stil, ca. 3,7 m i diameter, så den passer bedre til et klasselokale. Eleven starter altid samme sted, lige foran terminalen med døren forude; der er intet sædevalg. **Al betjening sker på én terminal**, så alt kan nås inden for 2 × 2 meter. Nederst på terminalen er fire symbolfaner:
 
 | Fane | Funktion |
 | --- | --- |
@@ -164,5 +164,6 @@ Oplevelsen er et fælles udgangspunkt; det vigtigste sker i samtalen bagefter. D
 3. Én terminal med symbolfaner, symboler i laboratoriet, logbog med tre felter, rejsekort og gemt bud. (Eksport venter.)
 4. Passthrough som nutid og three.js-hænder (passthrough midlertidigt slået fra).
 5. Bevisfasen: markerede genstande lægger zoner på kort og tidslinje, robotten opsummerer, nyt rejsekort.
-6. Fuld pc-, tablet- og mobilstyring.
-7. Elevtest i Quest 3 og på Chromebook.
+6. Halvt så stor kapsel (ca. 3,7 m), fast startplads foran terminalen, ingen årstal på tidslinjen.
+7. Fuld pc-, tablet- og mobilstyring.
+8. Elevtest i Quest 3 og på Chromebook.

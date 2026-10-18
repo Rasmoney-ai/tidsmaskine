@@ -9,27 +9,16 @@ export const COMFORT = {
 
 export const CAPSULE = {
   HOVER: 1.0,              // floor height above ground (m)
-  ROWS: 5,
-  ROW_PITCH: 1.0,          // distance between rows (m)
-  FRONT_ROW_Z: -2.0,       // z of row 1 (forward is -z)
-  SEAT_X: 0.8,             // half distance between the two seats in a row
   DESKTOP_EYE: 1.6,        // standing eye height in desktop mode (m)
-  WALK_RADIUS: 2.7,        // how far from the center you can walk on desktop (m)
-  RADIUS: 3.7,             // octagon corner radius (m)
+  WALK_RADIUS: 1.2,        // how far from the center you can walk on desktop (m)
+  RADIUS: 1.85,            // octagon corner radius (m): about 3.7 m across
   SILL: 0.3,               // glass starts here
   WALL_TOP: 2.7,           // glass ends, ceiling starts
   DOME_TOP: 3.6,
 };
 
-export const SEAT_COUNT = CAPSULE.ROWS * 2;
-
-// Start place n (1-10) on the floor: odd = left, even = right, 1-2 in front. Later: one per student.
-export function seatPosition(n) {
-  const i = Math.min(Math.max(n, 1), SEAT_COUNT) - 1;
-  const row = Math.floor(i / 2);
-  const side = i % 2 === 0 ? -1 : 1;
-  return { x: side * CAPSULE.SEAT_X, z: CAPSULE.FRONT_ROW_Z + row * CAPSULE.ROW_PITCH };
-}
+// Where the student always starts: just behind the center, facing the terminal and the door (forward is -z).
+export const START = { x: 0, z: 0.35 };
 
 // Passthrough as the present (immersive-ar). Off for now until the capsule size fits a classroom;
 // ?ar=1 turns it on for testing. Off: the headset starts in VR and the present is dark, calm mist.

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CAPSULE, COUNTDOWN, SEAT_COUNT, WORLD } from './config.js';
+import { CAPSULE, COUNTDOWN, WORLD } from './config.js';
 import { Timeline, OUTSIDE_SPOT } from './timeline.js';
 import { LocalClock } from './clock.js';
 import { buildWorld } from './world.js';
@@ -14,7 +14,6 @@ import { buildScanner } from './scanner.js';
 
 const params = new URLSearchParams(location.search);
 const state = {
-  seat: Math.min(Math.max(parseInt(params.get('seat'), 10) || 1, 1), SEAT_COUNT),
   debug: params.get('debug') === '1',
   outside: false,
   fakePassthrough: params.get('passthrough') === '1',   // test on desktop: the "classroom" is a flat gray
@@ -44,7 +43,7 @@ const jelling = buildJelling(scene, timeline, models);
 const capsule = buildCapsule({ mapDrawer: (ctx, r, x, z, yaw, clues) => drawJellingMap(ctx, r, x, z, yaw, timeline.stops, clues) });
 scene.add(capsule.vehicle);
 capsule.rig.add(camera);
-placeRig(capsule.rig, state.seat);
+placeRig(capsule.rig);
 const hands = buildHands(renderer, capsule.rig);
 const scanner = buildScanner(scene, jelling.scannables);
 // Desktop: the scanner sits in the lower right of the view (only outside). VR: it follows the hand/controller.
@@ -168,7 +167,6 @@ const app = {
   timeline, clock, audio, state, look, renderer, perf, scene, scanner,
   keys: new Set(),
   restart(play = true) { timeline.reset(); scanner.scanned.clear(); scanner.collected.clear(); terminal.reset(); setOutside(false); clock.pause(); clock.seek(-COUNTDOWN); if (play) clock.play(); },
-  setSeat(n) { state.seat = n; walk.x = walk.z = 0; capsule.placeTerminal(n); if (!state.outside) placeRig(capsule.rig, n); },
   // Buttons and actions: a zone id, 'door' (go out), 'enter' (back in), 'home', 'again'.
   press(id) {
     if (!id) return;
@@ -195,7 +193,6 @@ const app = {
   seekBy(dt) { if (timeline.clipId === 'intro') clock.seek(Math.max(-COUNTDOWN, Math.min(timeline.clip.dur - 0.01, clock.t + dt))); },
   xrSelect, xrSelectStart, xrSelectEnd,
 };
-capsule.placeTerminal(state.seat);
 window.app = app;
 initUI(app, renderer);
 
@@ -204,7 +201,7 @@ function setOutside(on) {
   walk.x = walk.z = 0;
   look.yaw = 0;
   capsule.setOutside(on);
-  placeRig(capsule.rig, state.seat, walk, on ? OUTSIDE_SPOT : null);
+  placeRig(capsule.rig, walk, on ? OUTSIDE_SPOT : null);
   if (!on) renderer.domElement.style.cursor = '';
 }
 
@@ -273,17 +270,17 @@ function walkStep(step) {
     walk.x += (-s * f + c * r) * sp; walk.z += (-c * f - s * r) * sp;
   }
   const spot = state.outside ? OUTSIDE_SPOT : null;
-  placeRig(capsule.rig, state.seat, walk, spot);
+  placeRig(capsule.rig, walk, spot);
   const p = capsule.rig.position;
   if (state.outside) {
     // Stay within about 2.5 m of the spot and outside the capsule wall.
     const dx = p.x - OUTSIDE_SPOT.x, dz = p.z - OUTSIDE_SPOT.z, d = Math.hypot(dx, dz);
-    if (d > 2.5) { walk.x -= dx * (1 - 2.5 / d); walk.z -= dz * (1 - 2.5 / d); placeRig(capsule.rig, state.seat, walk, spot); }
+    if (d > 2.5) { walk.x -= dx * (1 - 2.5 / d); walk.z -= dz * (1 - 2.5 / d); placeRig(capsule.rig, walk, spot); }
     const c = Math.hypot(p.x, p.z), minR = CAPSULE.RADIUS + 0.4;
-    if (c < minR) { const m = minR / c; walk.x += p.x * (m - 1); walk.z += p.z * (m - 1); placeRig(capsule.rig, state.seat, walk, spot); }
+    if (c < minR) { const m = minR / c; walk.x += p.x * (m - 1); walk.z += p.z * (m - 1); placeRig(capsule.rig, walk, spot); }
   } else {
     const d = Math.hypot(p.x, p.z);
-    if (d > CAPSULE.WALK_RADIUS) { const m = CAPSULE.WALK_RADIUS / d; walk.x -= p.x * (1 - m); walk.z -= p.z * (1 - m); placeRig(capsule.rig, state.seat, walk); }
+    if (d > CAPSULE.WALK_RADIUS) { const m = CAPSULE.WALK_RADIUS / d; walk.x -= p.x * (1 - m); walk.z -= p.z * (1 - m); placeRig(capsule.rig, walk); }
   }
 }
 

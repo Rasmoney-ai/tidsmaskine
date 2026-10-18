@@ -17,7 +17,7 @@ for (const z of Object.values(ZONES)) z.glide = [[z.capsule.x, z.capsule.z], [z.
 const LANDING = { base: 500, capsule: { x: -72, z: -22, yaw: -Math.PI / 2 }, zones: ['village'] };
 
 // Where the user stands when they go out (capsule-local, the door is in the front wall, forward is -z).
-export const OUTSIDE_SPOT = { x: 0, z: -5.2 };
+export const OUTSIDE_SPOT = { x: 0, z: -3.0 };
 
 const CLIPS = {
   intro: { kind: 'lab', dur: 10, captions: [

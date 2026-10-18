@@ -1,50 +1,43 @@
-# Rapport – milepæl 5
+# Rapport – milepæl 6
 
-**Gren:** `milepael-5` (lavet fra `main` = milepæl 4). Ikke flettet ind i `main`.
+**Gren:** `milepael-6` (lavet fra `main` = milepæl 5). Efter aftale med Rasmus er `main` flyttet frem til grenen, så han kan teste i brillen.
 
 ## Bygget
 
-- **Ny `data/jelling.json`** fra Rasmus er lagt ind uændret.
-- **Logbogen har tre trin** (`src/terminal.js`):
-  - a) **Gæt:** nål på kortet og markør på tidslinjen, som før.
-  - b) **Bevisfasen:** De scannede genstande ligger som billeder i en række. Et tryk markerer en genstand (grøn ramme og flueben), og et tryk mere fjerner markeringen. Hver markeret genstand lægger sit `dating`-interval på tidslinjen og sin zone fra `regions` på kortet. Overlappet af tidsintervallerne og overlappet af "her"-zonerne er fremhævet med stærk grøn. "Ud"-zoner tegnes stiplet ved oprindelsen med en linje til "her"-overlappet. Feltet "Hvad ændrer sig?" (≠) og de gamle beviskasser er fjernet.
-  - c) **Rejs hjem:** Prikker viser, hvor mange genstande der mangler (`minItems` = 5). Trykker eleven for tidligt (også fra zonefanen), skifter terminalen til logbogen, og robotten siger "tooFew". Med nok genstande siger robotten "done" og det åbne spørgsmål. Under tidsspringet står replikken på hele terminalen.
-- **Reglerne** ligger i et nyt modul, `src/evidence.js`, og læses fra filen: tidsoverlap, `timePhrases` efter overlappets bredde og `placePhrases`. "revealed" bruges, hvis en markeret genstand har `revealsPlace`. Ellers bruges sætningen for den smalleste "her"-zone, hvis den har en (`jelling_egn`), og ellers `default`. Til sidst `openQuestionBoth` eller `openQuestionDefault`.
-- **Robotten** er et lille robotsymbol med en taleboks (kun tekst).
-- **Rejsekortet:** elevens gæt (kort med nål) ved siden af sporene (kort med zoner og overlap). Tidslinjen viser både elevens markør og sporenes overlap. Under dem står de markerede genstande og robottens åbne spørgsmål. Ingen vurdering.
-- **Gemt bud** i `localStorage` (`tidsmaskinen.bud`): nål, markør, markerede genstande, tidsoverlap og robottens replikker.
-- DESIGN.md og CLAUDE.md er opdateret.
+1. **Ingen årstal på tidslinjen.** Tidslinjen viste allerede ingen årstal, hverken i logbogen eller på rejsekortet: kun periodebilleder, elevens markør og sporenes bånd. Årstallene bruges kun internt til placering (`yearToT` i `evidence.js`). Robottens replik nævner stadig årstallet. Ingen kodeændring var nødvendig. Reglen står nu i CLAUDE.md.
+2. **Intet sædevalg.** Sædeknapperne på startsiden, `?seat=`, tasterne 1-0 og "plads" i statuslinjen er fjernet. Eleven starter altid samme sted (`START` i `config.js`, lige bag midten) med terminalen foran og døren forude.
+3. **Halvt så stor kapsel.** `CAPSULE.RADIUS` er 1,85 m (ca. 3,7 m i diameter). Højden er uændret.
+   - **Døren:** radius 0,58 m (før 1,0 m), centrum i 1,0 m højde, så den passer i én side. Skilt og ramme er skaleret med.
+   - **Kulissepaneler:** fem i stedet for syv. Siderne ved døren er fri, så udsigten og døren ikke er spærret. Konsoller og skærme er mindre og står tættere på glasset.
+   - **Gulv og loft:** gulvringe, ovenlysets ramme og lysringen er skaleret ned.
+   - **Bevægelse:** gå-radius indenfor på pc er 1,2 m, og pladsen udenfor ligger 3,0 m fra midten (før 5,2 m). Panelet "Tilbage til kapslen" er flyttet med.
+4. **jelling.json:** `placePhrases.revealed` er nu "i Jelling, i et land, som stenen kalder TANMAURK". Intet andet i filen er rørt.
+5. DESIGN.md og CLAUDE.md er opdateret.
 
 ## Testet (desktop-tilstand i browseren)
 
-- Rejs hjem uden markeringer giver "Markér mindst 5 mere." i logbogen.
-- Med 7 markerede genstande (blandt andet store sten, lille hammer og kors) blev replikken: "… Vi er i Jelling. Stenen kalder landet TANMAURK, omkring år 968. …", efterfulgt af spørgsmålet om både hammer og kors. Rejsekortet og det gemte bud er tjekket.
-- Reglerne er afprøvet direkte med flere kombinationer:
-  - uden sten: "et sted i det sydlige Skandinavien, i et åbent landbrugslandskab, engang mellem år 900 og 1000"
-  - bredt overlap: "i en tid, mine data endnu ikke kan bestemme præcist"
-  - 960–1000: "i slutningen af 900-tallet"
-  - for få genstande: "tooFew" med det rigtige antal.
-- Ingen fejl i konsollen. 3D-scenen er ikke ændret, så trekanterne er som i milepæl 4 (under 150k pr. zone).
+- Startsiden har kun "Gå ind i VR" og "Se på skærmen". Eleven står foran terminalen, og fanerne kan bruges.
+- Kapslen indefra mod fronten, siden og bagud: Døren ses forude over terminalen, og panelerne passer.
+- Døren: ud og ind virker i Landsbyen, Gravhøjene, Runestenen og Palisaden. Udenfor står eleven frit i alle fire zoner, ikke inde i noget.
+- Kapslen set udefra (frit kamera) ved alle fire zoner og landingspladsen: Den står frit og ikke inde i bygninger, høje eller sten.
+- Trekanter i Landsbyen: ca. 135k, altså uændret og under 150k.
+- I en frisk fane er der ingen fejl i konsollen. Den gamle fane viste en fejl fra en tidligere indlæsning i browserens cache.
 
-## Kendte mangler og valg
+## Kendte mangler
 
-- **Årstal på tidslinjen:** Periodebillederne står med lige afstand, men årstallene gør ikke. Jeg har lagt årstal ind ved hvert billede i `evidence.js` (`ANCHOR_YEARS`: stenredskab −5000, bronzeøkse −1200, vikingeskib 950, borg 1250, kirke 1500, fabrik 1850, nutid 2026). Det placerer overlappet lige ved vikingeskibet. Tallene er mit forslag og kan rettes ét sted.
-- **Meget smalle overlap** (fx 966–970) tegnes mindst 8 pixel brede med en ramme, så de kan ses.
-- **Centralasien ligger uden for kortet** (kortet dækker Nordeuropa). Zonen markeres med en pil ved kortkanten i retning mod oprindelsen, og linjen går dertil.
-- Kortet i logbogen er bredere end det oprindelige kortudsnit, så nålen kan sættes lidt uden for Nordeuropa. Rejsekortets kort har nu samme form, så nålen står samme sted.
-- Robotten er kun tekst. Der er ingen lyd og ingen animation.
+- Døren er nu ca. 1,16 m høj (fra 0,42 til 1,58 m), fordi den skal passe i en side på 1,4 m. Ud og ind sker med en fade, så man går ikke fysisk igennem, men den ser lav ud for en voksen.
+- Pladsen udenfor er rykket tættere på kapslen. Sporene i hver zone står samme sted som før, så nogle kan være lidt længere væk end før (scanneren rækker 16 m).
 - Passthrough er stadig slået fra.
 
 ## Prøv i brillen
 
-1. Scan mindst 5 ting i forskellige zoner. Åbn logbogen, sæt en nål og træk markøren.
-2. Tryk "Rejs hjem" før du har markeret noget: Beder robotten om flere spor?
-3. Tryk på genstandene i rækken: Bliver de markeret, og dukker zonerne op på kort og tidslinje? Er overlappet tydeligt? Kan du fjerne en markering igen?
-4. Rejs hjem med 5 eller flere: Kan du læse robottens replik under springet?
-5. Hjemme: Giver rejsekortet mening med dit gæt ved siden af sporene og det åbne spørgsmål?
-6. Er knapper og genstande store nok at ramme med hånden?
+1. Start: Står du foran terminalen med døren lige forude? Passer kapslen bedre til lokalet?
+2. Kan du nå terminalen og alle fanerne uden at gå?
+3. Gå ud og ind ad døren i et par zoner. Føles døren for lille?
+4. Udenfor: Kan du nå at scanne sporene fra pladsen foran døren?
+5. Bevisfasen: Står robottens replik nu som "i Jelling, i et land, som stenen kalder TANMAURK"?
 
 ## Afvigelser fra prompten
 
-- **"Rejs hjem" kan trykkes, før der er markeret nok.** Så siger robotten "tooFew". Det er sådan, jeg har læst "Med for få genstande vises tooFew". Knappen lyser først op, når der er markeret nok.
-- **Tidslinjens årstal** er ikke givet i prompten og er lagt ind som beskrevet ovenfor.
+- **Punkt 1 krævede ingen ændring.** Tidslinjen viste allerede ingen årstal.
+- **To kulissepaneler er fjernet** (siderne ved døren), fordi syv paneler ikke kunne være i den mindre kapsel uden at spærre for døren og udsigten.

@@ -16,9 +16,6 @@
     .trip { display: inline-block; border: 2px solid var(--brass); border-radius: 10px; padding: .5em 1em; margin-bottom: 1.4em; }
     .trip b { color: #fff; }
     h2 { font-size: 1rem; font-weight: 600; margin: 0 0 .6em; opacity: .9; }
-    #seats { display: grid; grid-template-columns: repeat(2, 64px); column-gap: 46px; row-gap: 10px; justify-content: center; margin: 0 auto 1.4em; padding: 14px 0; background: linear-gradient(90deg, transparent 47%, #2f8f8a55 47%, #2f8f8a55 53%, transparent 53%); }
-    .seat { height: 52px; font-size: 1.3rem; font-weight: 700; border-radius: 10px; border: 2px solid #4d6b72; background: #1b2f36; color: var(--paper); cursor: pointer; }
-    .seat.on { background: var(--teal); border-color: #7fe0d4; }
     label { display: inline-flex; gap: .5em; align-items: center; margin-bottom: 1.4em; cursor: pointer; }
     input[type=checkbox] { width: 22px; height: 22px; }
     .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -40,8 +37,6 @@
       <h1>TIDSMASKINEN</h1>
       <p class="sub">I er tidsrejsende detektiver. Kapslen lander et ukendt sted i fortiden. Find ud af hvor, hvornår og hvad der er ved at ske.</p>
       <div class="trip">Ekspedition 1: <b>ukendt sted, ukendt tid</b></div>
-      <h2>Vælg din startplads (forrest er 1 og 2)</h2>
-      <div id="seats"></div>
       <div class="buttons">
         <button id="enter-vr">Gå ind i VR</button>
         <button id="enter-desktop">Se på skærmen</button>
@@ -53,7 +48,7 @@
   <div id="hud" hidden>
     <button id="back">Tilbage</button>
     <div id="status"></div>
-    <div class="keys">Træk med musen for at kigge rundt · W A S D: gå rundt · Klik på skærmene for at vælge zone · E: gå ud / ind · Klik på et spor for at scanne det · N / P: næste/forrige zone · J: rejs hjem · R: forfra · 1-0: startplads · H: skjul hjælp</div>
+    <div class="keys">Træk med musen for at kigge rundt · W A S D: gå rundt · Klik på skærmene for at vælge zone · E: gå ud / ind · Klik på et spor for at scanne det · N / P: næste/forrige zone · J: rejs hjem · R: forfra · H: skjul hjælp</div>
   </div>
   <script type="module" src="./src/main.js"></script>
 </body>
