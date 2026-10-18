@@ -17,6 +17,7 @@ const state = {
   seat: Math.min(Math.max(parseInt(params.get('seat'), 10) || 1, 1), SEAT_COUNT),
   debug: params.get('debug') === '1',
   outside: false,
+  fakePassthrough: params.get('passthrough') === '1',   // test on desktop: the "classroom" is a flat gray
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true, powerPreference: 'high-performance' });
@@ -27,6 +28,7 @@ renderer.toneMappingExposure = 0.95;
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
 renderer.xr.setFoveation(1);
+if (state.fakePassthrough) renderer.setClearColor(0x8a8f94, 1);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -285,6 +287,7 @@ const st = {};
 const fogBase = new THREE.Color(WORLD.FOG_COLOR), fogLab = new THREE.Color(WORLD.MIST_LAB), fogCalm = new THREE.Color(WORLD.MIST_STEALTH);
 const fogTunnel = new THREE.Color(0x3a3a8a), fogTarget = new THREE.Color();
 let lastNow = 0, doorK = 0;
+const skyColor = scene.background;
 const rays = [{}, {}];
 
 renderer.setAnimationLoop((now, frame) => {
@@ -300,13 +303,20 @@ renderer.setAnimationLoop((now, frame) => {
   jelling.setZones(st.zones);
   jelling.update(st.w);
 
+  // The present (before departure, after arrival): with passthrough nothing is drawn outside the capsule,
+  // so the classroom shows through the windows; the mist only covers it during the jumps. Without: dark calm mist.
+  const passthrough = state.fakePassthrough || (renderer.xr.isPresenting && renderer.xr.getEnvironmentBlendMode() === 'alpha-blend');
+  const jumpMist = st.mist * (1 - st.lab);   // mist that belongs to the jumps and zones, not to the present
+  const mist = passthrough ? jumpMist : st.mist;
   const u = capsule.mist.material.uniforms;
-  u.uOpacity.value = st.mist; u.uTunnel.value = st.tunnel; u.uLab.value = st.lab; u.uTime.value = st.w + tau;
-  capsule.mist.visible = st.mist > 0.001;
-  world.visible = jelling.group.visible = st.mist < 0.999;
+  u.uOpacity.value = mist; u.uTunnel.value = st.tunnel; u.uLab.value = st.lab; u.uTime.value = st.w + tau;
+  capsule.mist.visible = mist > 0.001;
+  world.visible = world.sky.visible = jelling.group.visible = st.mist < 0.999;
+  scene.background = passthrough ? null : skyColor;
   fogTarget.copy(fogCalm).lerp(fogLab, st.lab).lerp(fogTunnel, st.tunnel);
-  scene.fog.color.copy(fogBase).lerp(fogTarget, st.mist);
-  scene.fog.density = WORLD.FOG_DENSITY + (0.3 - WORLD.FOG_DENSITY) * st.mist * st.mist;
+  // Fog inside the cabin only while jumping or hopping; in the present the cabin stays clear.
+  scene.fog.color.copy(fogBase).lerp(fogTarget, jumpMist);
+  scene.fog.density = WORLD.FOG_DENSITY + (0.3 - WORLD.FOG_DENSITY) * jumpMist * jumpMist;
 
   doorK += ((st.doorOpen ? 1 : 0) - doorK) * Math.min(1, dt * 2.5);
   capsule.door.setOpen(doorK);

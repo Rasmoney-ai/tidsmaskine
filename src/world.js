@@ -310,7 +310,8 @@ export function buildWorld(scene, avoid, M = {}) {
   else decor.add(scatter(rock, 120, rand, free, [0.5, 1.8]));
 
   scene.add(group);
-  scene.add(sky());
+  const skyMesh = sky();
+  scene.add(skyMesh);
 
   scene.fog = new THREE.FogExp2(WORLD.FOG_COLOR, WORLD.FOG_DENSITY);
   scene.background = new THREE.Color(WORLD.FOG_COLOR);
@@ -318,6 +319,7 @@ export function buildWorld(scene, avoid, M = {}) {
   const sun = new THREE.DirectionalLight(0xffe4bd, 3.2);
   sun.position.copy(SUN_DIR).multiplyScalar(100);
   scene.add(hemi, sun);
+  group.sky = skyMesh;   // hidden with the past (the present is passthrough or calm mist)
   group.decor = decor;
   group.forest = forest;
   return group;

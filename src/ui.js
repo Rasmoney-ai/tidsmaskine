@@ -18,17 +18,19 @@ export function initUI(app, renderer) {
   }
   select(app.state.seat);
 
-  // VR support.
+  // XR support: passthrough (immersive-ar) when the headset has it, so the present is the real classroom; else VR.
+  let mode = null;
   if (navigator.xr) {
-    navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
-      vrBtn.disabled = !ok;
-      if (!ok) vrBtn.textContent = 'VR findes ikke på denne enhed';
+    Promise.all(['immersive-ar', 'immersive-vr'].map((m) => navigator.xr.isSessionSupported(m).catch(() => false))).then(([ar, vr]) => {
+      mode = ar ? 'immersive-ar' : vr ? 'immersive-vr' : null;
+      vrBtn.disabled = !mode;
+      if (!mode) vrBtn.textContent = 'VR findes ikke på denne enhed';
     });
   } else { vrBtn.disabled = true; vrBtn.textContent = 'VR findes ikke i denne browser'; }
 
   vrBtn.onclick = async () => {
     app.audio.start();
-    const session = await navigator.xr.requestSession('immersive-vr', {
+    const session = await navigator.xr.requestSession(mode, {
       requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'],
     });
     await renderer.xr.setSession(session);

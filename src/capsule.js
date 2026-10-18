@@ -72,6 +72,8 @@ function cabinShell() {
   }
   for (const f of [0.33, 0.66]) b.add(G.torus((R - 0.1 + (rTop - R + 0.1) * f) / Math.cos(Math.PI / 8) * Math.cos(Math.PI / 8), 0.02, 3, 8), DARK, { pos: [0, y0 + domeH * f - 0.02, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
   b.add(G.torus(rTop, 0.08, 4, 8), DARK, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
+  // The oculus is closed: the ceiling is always opaque (with passthrough the classroom only shows through the windows).
+  b.add(new THREE.CircleGeometry(rTop, 8), CONCRETE, { pos: [0, DOME_TOP + 0.03, 0], rot: [Math.PI / 2, 0, Math.PI / 8] });
   // Screen consoles along the windows: slim pedestal, angled screen housing.
   for (const k of Object.keys(PANEL_SIDES).map(Number)) {
     const a = sideMid(k), d = R * APO - 0.42, sx = Math.sin(a), sz = Math.cos(a);
@@ -107,7 +109,6 @@ function cabinShell() {
     const hole = new THREE.Path(); hole.absarc(0, DOOR.CY, DOOR.R + 0.05, 0, Math.PI * 2, true); shape.holes.push(hole);
     gl.add(new THREE.ShapeGeometry(shape, 24), 0xbfe0ea, { pos: [cx, 0, cz], rot: [0, a, 0] });
   }
-  gl.add(new THREE.CircleGeometry(rTop, 8), 0xbfe0ea, { pos: [0, DOME_TOP, 0], rot: [-Math.PI / 2, 0, Math.PI / 8] });
   const glass = new THREE.Mesh(gl.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.06, depthWrite: false, fog: false, side: THREE.DoubleSide }));
   glass.renderOrder = 5;
   return { shell, glow, glass };

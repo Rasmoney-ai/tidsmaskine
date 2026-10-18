@@ -31,6 +31,12 @@ Testen i Quest 3 viste, at teknikken holder, men at mennesker og dyr afslører s
 
 Ved at fjerne de levende figurer forsvinder det svageste led, og eleverne går fra at være tilskuere til at være detektiver. Det giver samtidig luft i trekantbudgettet.
 
+## Nutiden er passthrough
+
+I Quest 3 starter oplevelsen med passthrough: før afrejse og efter hjemkomst ses det rigtige klasselokale gennem kapslens vinduer. Ved tidsspringet dækker tågen klasselokalet, og derefter kommer fortiden frem. Ved hjemkomst letter tågen, og klasselokalet er tilbage. Kapslens vægge, gulv og loft er altid uigennemsigtige, så kun vinduerne viser omverdenen. Uden passthrough (pc eller ældre briller) vises nutiden som mørk, rolig tåge.
+
+Eleverne ser deres egne hænder som realistiske hænder (three.js' håndmodel), der virker med scanneren og logbogen.
+
 ## Rammefortællingen
 
 Eleverne er tidsrejsende detektiver, hvis kapsel er landet et ukendt sted i fortiden. Opgaven er at finde ud af hvor, hvornår og hvad der er ved at ske.
@@ -41,13 +47,13 @@ Eleverne er tidsrejsende detektiver, hvis kapsel er landet et ukendt sted i fort
 
 ## Oplevelsens forløb
 
-1. Landing i kapslen.
+1. Afgang fra klasselokalet (passthrough), tidsspring og landing.
 2. Eleven vælger en zone på terminalen.
 3. Kapslen springer i tåge til zonen.
 4. Døren åbner. Eleven går ud og scanner spor.
 5. Tilbage i kapslen: laboratoriet viser analyserne.
 6. Klar til et bud? Nej: vælg en ny zone (tilbage til 2). Ja: bud i logbogen.
-7. Hjemrejse.
+7. Hjemrejse: tågen letter, og klasselokalet ses igen.
 8. Samtale i klassen (sker uden for appen).
 
 ## Kapslen
@@ -148,5 +154,6 @@ Oplevelsen er et fælles udgangspunkt; det vigtigste sker i samtalen bagefter. D
 1. Fjern figurer og dyr, tilføj visuelle spor af liv, zonevalg og dør ud, én scanbar genstand, laboratoriepanel med én analyse fra JSON.
 2. Flere genstande pr. zone og proveniens på kortet.
 3. Én terminal med symbolfaner, symboler i laboratoriet, logbog med tre felter, rejsekort og gemt bud. (Eksport venter.)
-4. Fuld pc-, tablet- og mobilstyring.
-5. Elevtest i Quest 3 og på Chromebook.
+4. Passthrough som nutid og three.js-hænder.
+5. Fuld pc-, tablet- og mobilstyring.
+6. Elevtest i Quest 3 og på Chromebook.
